@@ -1,0 +1,82 @@
+@import '../common/abstracts/variable';
+@import '../common/abstracts/mixin';
+
+@include b(slide-verify) {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+
+  @include when(disabled) {
+    cursor: not-allowed;
+
+    & {
+      opacity: 0.8;
+
+      @include e(button) {
+        color: $-slide-verify-disabled-color;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  @include e(text-inner) {
+    color: $-slide-verify-text-color;
+    font-size: $-slide-verify-text-size;
+    transition: color 0.3s ease;
+  }
+
+  @include e(track) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 100%;
+    transition: background 0.2s ease;
+    overflow: hidden;
+  }
+
+  @include e(track-text) {
+    position: absolute;
+    left: 0;
+    height: 100%;
+    min-width: $-slide-verify-track-width;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    pointer-events: none;
+
+    @include m(success) {
+      color: $-slide-verify-success-text-color;
+    }
+  }
+
+  @include e(button) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $-slide-verify-button-bg;
+    box-shadow: 0 2px 8px $-slide-verify-button-shadow;
+    color: $-slide-verify-button-color;
+    cursor: grab;
+    will-change: transform;
+  }
+
+  // 按钮图标
+  @include e(button-icon) {
+    @include m(success) {
+      width: calc($-slide-verify-button-size * 0.5);
+      height: calc($-slide-verify-button-size * 0.5);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}

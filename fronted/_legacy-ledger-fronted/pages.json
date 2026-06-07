@@ -1,0 +1,97 @@
+{
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			"^wd-(.*)": "wot-design-uni/components/wd-$1/wd-$1.vue"
+		}
+	},
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		{
+			"path": "pages/dev-login/dev-login",
+			"style": {
+				"navigationBarTitleText": "开发调试登录"
+			}
+		},
+		{
+			"path": "pages/book-editor/book-editor",
+			"style": {
+				"navigationBarTitleText": "创建账本"
+			}
+		},
+		{
+			"path": "pages/book-detail/book-detail",
+			"style": {
+				"navigationBarTitleText": "账本详情"
+			}
+		},
+		{
+			"path": "pages/bill/bill",
+			"style": {
+				"navigationBarTitleText": "账单"
+			}
+		},
+		{
+			"path": "pages/my/my",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/message/message",
+			"style": {
+				"navigationBarTitleText": "消息"
+			}
+		},
+		{
+			"path": "pages/statistic/statistic",
+			"style": {
+				"navigationBarTitleText": "实时统计"
+			}
+		},
+		{
+			"path": "pages/book/book",
+			"style": {
+				"navigationBarTitleText": "账本"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "Trip Ledger",
+		"navigationBarBackgroundColor": "#c5161d",
+		"backgroundColor": "#f6f7fb"
+	},
+	"uniIdRouter": {},
+	"tabBar": {
+		"color": "#9aa1ad",
+		"selectedColor": "#ffffff",
+		"borderStyle": "black",
+		"backgroundColor": "#c5161d",
+		"list": [
+		{
+			"pagePath": "pages/statistic/statistic",
+			// "iconPath": "static/image/icon_component.png",
+			// "selectedIconPath": "static/image/icon_component_HL.png",
+			"text": "统计"
+		}, 
+		{
+			"pagePath": "pages/book/book",
+			// "iconPath": "static/image/icon_API.png",
+			// "selectedIconPath": "static/image/icon_API_HL.png",
+			"text": "账本"
+		},
+		{
+			"pagePath": "pages/bill/bill",
+			"text": "账单"
+		},
+		{
+			"pagePath": "pages/message/message",
+			"text": "消息"
+		},
+		{
+			"pagePath": "pages/my/my",
+			"text": "我的"
+		}
+		]
+	}
+}

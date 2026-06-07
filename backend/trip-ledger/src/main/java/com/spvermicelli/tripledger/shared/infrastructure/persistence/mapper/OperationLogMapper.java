@@ -1,0 +1,9 @@
+package com.spvermicelli.tripledger.shared.infrastructure.persistence.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.spvermicelli.tripledger.shared.infrastructure.persistence.po.OperationLogPO;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface OperationLogMapper extends BaseMapper<OperationLogPO> {
+}

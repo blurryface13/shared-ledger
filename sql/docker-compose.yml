@@ -1,0 +1,31 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ${TRIP_LEDGER_MYSQL_CONTAINER_NAME:-trip-ledger-mysql}
+    restart: unless-stopped
+    ports:
+      - "${TRIP_LEDGER_MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${TRIP_LEDGER_MYSQL_ROOT_PASSWORD:?TRIP_LEDGER_MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: db_trip_ledger
+      MYSQL_USER: ${TRIP_LEDGER_MYSQL_APP_USERNAME:?TRIP_LEDGER_MYSQL_APP_USERNAME is required}
+      MYSQL_PASSWORD: ${TRIP_LEDGER_MYSQL_APP_PASSWORD:?TRIP_LEDGER_MYSQL_APP_PASSWORD is required}
+      TZ: ${TRIP_LEDGER_MYSQL_TZ:-Asia/Shanghai}
+    volumes:
+      - trip_ledger_mysql_data:/var/lib/mysql
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d
+      - ./docker/mysql/initdb:/docker-entrypoint-initdb.d
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      - --skip-name-resolve
+      - --local-infile=0
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  trip_ledger_mysql_data:

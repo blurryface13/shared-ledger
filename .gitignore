@@ -1,0 +1,28 @@
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Runtime logs
+*.log
+
+# Environment files
+*.env
+.env
+.env.*
+!*.env.example
+!.env.*.example
+
+# Java / Maven
+target/
+build/
+
+# Node / uni-app
+node_modules/
+dist/
+unpackage/
+.hbuilderx/
+
+# Uploaded/local files
+files/
+uploads/

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trip Ledger Workbench</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230f3f78'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial' font-size='24' font-weight='700' fill='%23f8f6f0'%3ETL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">TL</div>
+          <div>
+            <div class="brand-title">Trip Ledger</div>
+            <div class="brand-subtitle">Domain Workbench</div>
+          </div>
+        </div>
+
+        <label class="search-box">
+          <span class="icon" aria-hidden="true">⌕</span>
+          <input id="endpoint-search" type="search" placeholder="搜索接口、路径或业务域" />
+        </label>
+
+        <nav id="sidebar-nav" class="nav-list"></nav>
+
+        <section class="sidebar-block">
+          <div class="block-title">
+            <h3>运行上下文</h3>
+            <span id="context-health" class="health-pill">未配置</span>
+          </div>
+          <label class="field">
+            <span>Base URL</span>
+            <input id="base-url" type="text" value="http://127.0.0.1:8080" />
+          </label>
+          <label class="field">
+            <span>Access Token</span>
+            <textarea id="access-token" rows="4" placeholder="登录后会自动写入 access token 或 bind token"></textarea>
+          </label>
+          <label class="field">
+            <span>Refresh Token</span>
+            <textarea id="refresh-token" rows="3" placeholder="刷新后会自动写入"></textarea>
+          </label>
+          <div class="button-row">
+            <button id="save-session" class="secondary"><span class="button-icon">✓</span>保存</button>
+            <button id="clear-session" class="ghost"><span class="button-icon">×</span>清空</button>
+          </div>
+        </section>
+
+        <section class="sidebar-block">
+          <h3>路径变量</h3>
+          <div id="context-fields" class="context-grid"></div>
+        </section>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">Learning-first product console</div>
+            <h1>Trip Ledger 后端工作台</h1>
+          </div>
+          <div class="topbar-actions">
+            <button id="quick-ping" class="ghost"><span class="button-icon">↗</span>Ping</button>
+            <button id="quick-mock-users" class="ghost"><span class="button-icon">◎</span>Mock Users</button>
+            <button id="quick-me" class="secondary"><span class="button-icon">●</span>Current User</button>
+          </div>
+        </header>
+
+        <section class="overview-strip">
+          <article>
+            <span>接口总数</span>
+            <strong id="metric-endpoints">0</strong>
+          </article>
+          <article>
+            <span>业务模块</span>
+            <strong id="metric-sections">0</strong>
+          </article>
+          <article>
+            <span>需要路径变量</span>
+            <strong id="metric-context">0</strong>
+          </article>
+          <article>
+            <span>最近状态</span>
+            <strong id="metric-status">待请求</strong>
+          </article>
+        </section>
+
+        <section class="workflow-band">
+          <div>
+            <h2>推荐学习链路</h2>
+            <p>从系统探针到登录，再进入账本主域，最后扩展到结算、审批和统计。</p>
+          </div>
+          <ol id="workflow-steps" class="workflow-steps"></ol>
+        </section>
+
+        <section class="quick-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>快速登录</h2>
+              <span class="panel-tag">开发态</span>
+            </div>
+            <label class="field">
+              <span>Mock Code</span>
+              <input id="login-code" type="text" placeholder="例如 mock-user-001" />
+            </label>
+            <label class="field">
+              <span>登录请求体</span>
+              <textarea id="login-payload" rows="5">{
+  "code": "",
+  "confirmReRegister": false
+}</textarea>
+            </label>
+            <div class="button-row">
+              <button id="quick-login"><span class="button-icon">→</span>微信登录</button>
+              <button id="quick-refresh" class="secondary"><span class="button-icon">↻</span>刷新 Token</button>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Mock 用户</h2>
+              <span class="panel-tag">/api/v1/auth/dev/mock-users</span>
+            </div>
+            <div id="mock-users" class="mock-list">
+              <div class="empty">先点右上角 Mock Users 拉取开发用户。</div>
+            </div>
+          </article>
+
+        </section>
+
+        <section class="tool-strip">
+          <div class="segmented" role="group" aria-label="按请求方法过滤">
+            <button class="method-filter active" data-method-filter="ALL">All</button>
+            <button class="method-filter" data-method-filter="GET">GET</button>
+            <button class="method-filter" data-method-filter="POST">POST</button>
+            <button class="method-filter" data-method-filter="PUT">PUT</button>
+            <button class="method-filter" data-method-filter="DELETE">DELETE</button>
+          </div>
+          <div id="result-count" class="result-count">显示全部接口</div>
+        </section>
+
+        <section id="sections" class="sections"></section>
+      </main>
+
+      <aside class="response-dock" aria-label="响应与历史">
+        <div class="dock-head">
+          <div>
+            <h2>响应</h2>
+            <span id="response-meta" class="panel-tag">尚未请求</span>
+          </div>
+          <button id="copy-response" class="icon-button" title="复制响应" aria-label="复制响应">⧉</button>
+        </div>
+        <pre id="response-output" class="response-output">{
+  "hint": "这里会展示最近一次接口返回"
+}</pre>
+        <div class="history-head">
+          <h3>请求历史</h3>
+          <button id="clear-history" class="text-button">清空</button>
+        </div>
+        <div id="request-history" class="request-history">
+          <div class="empty">还没有请求记录。</div>
+        </div>
+      </aside>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"@/*": [
+				"./*"
+			]
+		}
+	},
+	"include": [
+		"*.js",
+		"*.vue",
+		"api/**/*.js",
+		"components/**/*.vue",
+		"config/**/*.js",
+		"pages/**/*.vue",
+		"services/**/*.js",
+		"stores/**/*.js",
+		"styles/**/*.scss",
+		"utils/**/*.js",
+		"vite.config.mjs"
+	]
+}

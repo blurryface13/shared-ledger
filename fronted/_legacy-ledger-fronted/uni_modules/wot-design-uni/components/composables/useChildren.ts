@@ -1,0 +1,114 @@
+import {
+  provide,
+  reactive,
+  getCurrentInstance,
+  type VNode,
+  type InjectionKey,
+  type VNodeNormalizedChildren,
+  type ComponentPublicInstance,
+  type ComponentInternalInstance
+} from 'vue'
+
+// 小程序端不支持从vue导出的isVNode方法，参考uni-mp-vue的实现
+function isVNode(value: any): value is VNode {
+  return value ? value.__v_isVNode === true : false
+}
+
+export function flattenVNodes(children: VNode) {
+  const result: VNode[] = []
+
+  const traverse = (children: VNode | VNodeNormalizedChildren) => {
+    const vNode = Array.isArray(children) ? children : [children]
+    vNode.forEach((child) => {
+      if (Array.isArray(child)) {
+        traverse(child)
+      } else if (isVNode(child) && child.component?.subTree) {
+        result.push(child)
+        traverse(child.component.subTree)
+      } else if (isVNode(child) && Array.isArray(child.children)) {
+        traverse(child.children)
+      } else if (isVNode(child)) {
+        result.push(child)
+      }
+    })
+  }
+
+  traverse(children)
+
+  return result
+}
+
+const findVNodeIndex = (vnodes: VNode[], vnode: VNode) => {
+  const index = vnodes.indexOf(vnode)
+  if (index === -1) {
+    return vnodes.findIndex((item) => vnode.key !== undefined && vnode.key !== null && item.type === vnode.type && item.key === vnode.key)
+  }
+  return index
+}
+
+// sort children instances by vnodes order
+export function sortChildren(
+  parent: ComponentInternalInstance,
+  publicChildren: ComponentPublicInstance[],
+  internalChildren: ComponentInternalInstance[]
+) {
+  const vnodes = parent && parent.subTree && parent.subTree.children ? flattenVNodes(parent.subTree) : []
+  internalChildren.sort((a, b) => findVNodeIndex(vnodes, a.vnode) - findVNodeIndex(vnodes, b.vnode))
+
+  const orderedPublicChildren = internalChildren.map((item) => item.proxy!)
+
+  publicChildren.sort((a, b) => {
+    const getIndex = (comp: ComponentPublicInstance) => {
+      const uid = comp.$.uid
+      return orderedPublicChildren.findIndex((i) => i.$.uid === uid)
+    }
+
+    const indexA = getIndex(a)
+    const indexB = getIndex(b)
+    return indexA - indexB
+  })
+}
+
+export function useChildren<
+  // eslint-disable-next-line
+  Child extends ComponentPublicInstance = ComponentPublicInstance<{}, any>,
+  ProvideValue = never
+>(key: InjectionKey<ProvideValue>) {
+  const publicChildren: Child[] = reactive([])
+  const internalChildren: ComponentInternalInstance[] = reactive([])
+  const parent = getCurrentInstance()!
+
+  const linkChildren = (value?: ProvideValue) => {
+    const link = (child: ComponentInternalInstance) => {
+      if (child.proxy) {
+        internalChildren.push(child)
+        publicChildren.push(child.proxy as Child)
+        sortChildren(parent, publicChildren, internalChildren)
+      }
+    }
+
+    const unlink = (child: ComponentInternalInstance) => {
+      const index = internalChildren.indexOf(child)
+      publicChildren.splice(index, 1)
+      internalChildren.splice(index, 1)
+    }
+
+    provide(
+      key,
+      Object.assign(
+        {
+          link,
+          unlink,
+          children: publicChildren,
+          internalChildren
+        },
+        value
+      )
+    )
+  }
+
+  return {
+    children: publicChildren,
+    linkChildren
+  }
+}
