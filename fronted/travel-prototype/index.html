@@ -12,9 +12,9 @@
     <a class="brand" href="#itinerary" aria-label="返回行程"><img src="assets/ledger.png" alt="账本图标"></a>
 
     <nav aria-label="主导航">
-      <button data-view="itinerary" class="nav-item active"><span>▤</span>旅行行程</button>
-      <button data-view="ledger" class="nav-item"><img class="nav-ledger-icon" src="assets/ledger.png" alt="">共享账本</button>
-      <button data-view="media" class="nav-item"><span>▧</span>相册与水印</button>
+      <button data-view="itinerary" class="nav-item active"><img class="nav-ledger-icon" src="assets/itinerary.png" alt="">Itinerary</button>
+      <button data-view="ledger" class="nav-item"><img class="nav-ledger-icon" src="assets/ledger.png" alt="">Ledger</button>
+      <button data-view="media" class="nav-item"><img class="nav-ledger-icon" src="assets/gallery.png" alt="">Gallery</button>
     </nav>
     <div class="side-trip"><p>杭州两日</p><span>09.26 — 09.27 / 2 DAYS</span><div class="mini-landscape" aria-hidden="true"><i></i><i></i><i></i><b>杭州</b></div></div>
     <button class="agent-entry" data-action="agent"><img src="assets/assistant.png" alt="规划助手头像"><span>行程助手</span><b>↗</b></button>
@@ -45,5 +45,6 @@
   <dialog id="activity-dialog" aria-labelledby="activity-title"><header class="dialog-head"><h2 id="activity-title">加一张行程卡</h2><button data-close="activity-dialog" class="icon-button" aria-label="关闭行程编辑">×</button></header><form id="activity-form"><label>地点 / 活动<input name="title" maxlength="40" required></label><div class="form-grid"><label>开始时间<input name="time" type="time" required></label><label>停留分钟<input name="duration" type="number" min="15" max="600" required value="60"></label></div><label>随手记<input name="note" maxlength="100" placeholder="例如：提前预约，记得带证件"></label><p class="form-note">本地样稿按时间排序并检查活动重叠，交通时间留待真实路线接入校验。</p><button class="primary-button" type="submit">保存安排</button><p id="activity-error" role="alert"></p></form></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>
+  <script src="ledger.js"></script>
 </body>
 </html>

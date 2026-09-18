@@ -145,7 +145,7 @@ document.addEventListener('click', (event) => {
   }
 });
 $('#bill-form').addEventListener('submit', (event) => {
-  event.preventDefault(); const data = new FormData(event.target);
+  event.preventDefault(); if (window.saveLedgerBill) { window.saveLedgerBill(event.target); return; } const data = new FormData(event.target);
   const cents = Math.round(Number(data.get('amount')) * 100);
   const title = String(data.get('title')).trim();
   if (!title || !Number.isSafeInteger(cents) || cents <= 0) return;

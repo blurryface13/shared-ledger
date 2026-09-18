@@ -1,4 +1,55 @@
 /* Asset-led navigation, native typography, and a physical paper preview. */
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ledger-tabs { display: flex; gap: 3px; border-bottom: 1px solid var(--line); margin-bottom: 22px; overflow-x: auto; }
+.ledger-tabs button { flex: 1; white-space: nowrap; padding: 8px 10px; font-size: 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+.ledger-tabs button.active { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+.ledger-controls { display: flex; gap: 20px; justify-content: space-between; align-items: end; margin-bottom: 10px; }
+.ledger-controls label { font-size: 11px; color: var(--muted); }
+.ledger-controls select { margin-top: 5px; min-width: 125px; }
+.ledger-bill { border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.ledger-bill .bill-row { border-bottom: 0; gap: 12px; }
+.ledger-bill .bill-icon { flex-shrink: 0; }
+.bill-info { min-width: 0; overflow-wrap: anywhere; }
+.bill-amount { flex-shrink: 0; }
+.ledger-bill summary { font-size: 11px; color: var(--muted); cursor: pointer; padding: 5px 0; }
+.split-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin: 14px 0; font-size: 11px; }
+.split-list span { display: flex; justify-content: space-between; }
+.split-list b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.row-actions button, .management-row button { font-size: 11px; padding: 6px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
+.row-actions button:hover, .management-row button:hover { background: var(--sage); }
+.ledger-section-title { font-size: 18px; margin: 26px 0 16px; }
+.stat-line { margin: 18px 0; }
+.stat-line > div:first-child { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; }
+.stat-line strong { font-weight: 500; }
+.management-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.management-row strong { font-weight: 500; }
+.management-row small { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.management-row select { width: 110px; margin: 0; font-size: 12px; }
+.ledger-details { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 20px; }
+.ledger-details summary { cursor: pointer; font-size: 14px; }
+.ledger-details form, .ledger-details > p { margin-top: 18px; }
+.ledger-details > p { font-size: 12px; }
+.ledger-empty { font-size: 12px; color: var(--muted); padding: 24px 0; }
+.request-row { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.request-row strong { font-size: 14px; font-weight: 500; }
+.request-row p { margin: 6px 0; font-size: 12px; color: var(--muted); }
+.history-line small { display: block; color: var(--muted); }
+.split-field { border: 0; padding: 0; margin: 0; }
+.split-field legend { font-size: 12px; }
+#split-options { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 8px; }
+#split-options label { display: flex; align-items: center; gap: 6px; margin: 0; min-height: 44px; }
+#split-options input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+#export-scope { display: block; font-size: 12px; margin-bottom: 20px; }
+#calculation-body h3 { margin-top: 20px; font-size: 17px; }
+@media (max-width:640px) {
+  .ledger-tabs { gap: 0; }
+  .ledger-tabs button { padding: 8px 7px; }
+  .ledger-bill .bill-icon { width: 35px; height: 42px; }
+  .ledger-bill .bill-amount { font-size: 17px; }
+}
+@media print { #export-scope { display: none !important; } }
 :root {
   --ui-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --reading-font: ui-serif, "New York", "Times New Roman", serif;
@@ -12,7 +63,7 @@ body { font-family: var(--ui-font); }
 .paper-row, .bill-amount, .budget-numbers { font-variant-numeric: lining-nums tabular-nums; }
 .brand { width: 76px; height: 76px; margin: 0 0 30px 6px; }
 .brand img { width: 76px; height: 76px; object-fit: contain; }
-.nav-ledger-icon { width: 24px; height: 25px; object-fit: contain; }
+.nav-ledger-icon { width: 32px; height: 32px; object-fit: contain; }
 .agent-entry img { width: 56px; height: 56px; object-fit: contain; }
 .agent-entry span { font-size: 12px; }
 .companion-head img { width: 62px; height: 62px; object-fit: contain; }
@@ -71,7 +122,7 @@ body { font-family: var(--ui-font); }
   .paper-stack { left: 20px; top: 158px; }
 }
 @media (max-width:640px) {
-  .nav-ledger-icon { width: 25px; height: 25px; margin-top: -2px; }
+  .nav-ledger-icon { width: 30px; height: 30px; margin-top: -2px; }
   .export-stage { height: 430px; }
   .paper-stack { left: 32px; top: 154px; }
   .preview-paper { width: 300px; }

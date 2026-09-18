@@ -24,3 +24,7 @@ Restrained：暖灰纸底 oklch(0.97 0.006 85)，炭灰正文 oklch(0.27 0.008 7
 用户提供两张角色图：第一张为账本图标，第二张为规划助手头像。界面仅保留功能名称，不显示角色中文名、产品中文名或宣传 slogan。导出纸张加入透视、厚度、多层投影和悬浮层叠。
 
 截图字体辨识为视觉推测：中文接近 PingFang SC Regular / Semibold，系统无衬线数字接近 SF Pro；卡片时间与英文地点名接近 New York / Times 风格。不能仅凭截图确认字体文件。实现以系统无衬线和 ui-serif 为主，Times New Roman 为衬线回退，不下载或分发 Apple 字体。
+
+## Navigation and contextual actions (2026-09-19)
+
+Use Itinerary / Ledger / Gallery for the three main labels. Preserve one responsive design. The left character from the new two-character reference represents Itinerary; the right represents Gallery. Ledger retains its existing image. Ledger uses its own bill-summary paper preview and 帮我算账; Gallery omits itinerary export and assistant controls. Group ledger operations into 明细 / 统计 / 成员 / 审批 / 结算 / 设置 to keep the first screen quiet.
