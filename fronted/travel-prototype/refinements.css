@@ -1,0 +1,84 @@
+/* Asset-led navigation, native typography, and a physical paper preview. */
+:root {
+  --ui-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --reading-font: ui-serif, "New York", "Times New Roman", serif;
+}
+body { font-family: var(--ui-font); }
+.activity-time, .english { font-family: var(--reading-font); }
+.activity-time { font-size: 24px; font-weight: 400; font-variant-numeric: lining-nums tabular-nums; }
+.english { font-size: 16px; }
+.activity-title h3 { font-weight: 600; letter-spacing: 0; }
+.day-title h2 { font-weight: 600; letter-spacing: 2px; }
+.paper-row, .bill-amount, .budget-numbers { font-variant-numeric: lining-nums tabular-nums; }
+.brand { width: 76px; height: 76px; margin: 0 0 30px 6px; }
+.brand img { width: 76px; height: 76px; object-fit: contain; }
+.nav-ledger-icon { width: 24px; height: 25px; object-fit: contain; }
+.agent-entry img { width: 56px; height: 56px; object-fit: contain; }
+.agent-entry span { font-size: 12px; }
+.companion-head img { width: 62px; height: 62px; object-fit: contain; }
+.companion .wide-link { margin-top: 15px; }
+.trip-stamp { font-family: var(--ui-font); }
+.page-heading h1 { letter-spacing: 0; font-weight: 600; }
+.export-stage { isolation: isolate; height: 525px; background: oklch(.91 .018 47); }
+.export-heading { position: relative; z-index: 1; padding: 26px 27px; }
+.export-heading h2 { font-size: 27px; letter-spacing: 0; }
+.paper-stack { top: 166px; left: 26px; right: 12px; height: 390px; perspective: 1100px; perspective-origin: 50% 15%; }
+.back-paper {
+  top: 18px; left: 15px; width: 285px; height: 382px;
+  background: oklch(.94 .012 80); border: 1px solid oklch(.85 .012 80);
+  border-radius: 2px;
+  transform: rotate(5deg) rotateY(-7deg) rotateX(8deg) translateZ(-18px);
+  box-shadow: 1px 2px 0 oklch(.85 .012 80), 3px 5px 0 oklch(.94 .008 80), 6px 16px 25px #47392e24;
+  transition: transform .45s cubic-bezier(.16,1,.3,1);
+}
+.back-paper-far {
+  top: 24px; left: 0; background: var(--sage);
+  transform: rotate(-13deg) rotateY(-8deg) translateZ(-35px);
+}
+.preview-paper {
+  width: 305px; min-height: 395px; border-radius: 2px;
+  transform: rotate(-8deg) rotateY(-10deg) rotateX(9deg) translateZ(12px);
+  transform-origin: 48% 25%;
+  background: linear-gradient(112deg, oklch(.997 .003 80), oklch(.977 .008 80));
+  border: 1px solid oklch(.9 .01 80);
+  box-shadow: 1px 1px 0 oklch(.86 .012 80), 2px 3px 0 oklch(.99 .005 80),
+    3px 4px 0 oklch(.83 .012 80), 4px 6px 0 oklch(.97 .006 80),
+    7px 12px 13px #41342d18, 17px 29px 38px #41342d33;
+  transition: transform .45s cubic-bezier(.16,1,.3,1), box-shadow .45s;
+}
+.preview-paper::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(112deg, #ffffff30, transparent 38%, #89756408 82%, #ffffff25);
+}
+@media (hover:hover) {
+  .paper-stack:hover .preview-paper, .preview-paper:focus-visible {
+    transform: rotate(-4deg) rotateY(-5deg) rotateX(3deg) translate3d(-3px,-14px,35px);
+    box-shadow: 1px 1px 0 oklch(.86 .012 80), 2px 3px 0 oklch(.99 .005 80),
+      3px 4px 0 oklch(.83 .012 80), 4px 6px 0 oklch(.97 .006 80),
+      10px 21px 24px #41342d20, 24px 43px 50px #41342d38;
+  }
+  .paper-stack:hover .back-paper { transform: rotate(8deg) rotateY(-7deg) translate3d(3px,4px,-18px); }
+  .paper-stack:hover .back-paper-far { transform: rotate(-16deg) rotateY(-8deg) translateZ(-35px); }
+}
+.export-link { z-index: 3; }
+@media (max-width:1160px) {
+  .preview-paper { width: 270px; }
+  .back-paper { width: 250px; }
+}
+@media (max-width:950px) {
+  .export-stage { height: 410px; }
+  .paper-stack { left: 20px; top: 158px; }
+}
+@media (max-width:640px) {
+  .nav-ledger-icon { width: 25px; height: 25px; margin-top: -2px; }
+  .export-stage { height: 430px; }
+  .paper-stack { left: 32px; top: 154px; }
+  .preview-paper { width: 300px; }
+  .back-paper { width: 275px; }
+  .activity-time { font-size: 23px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .paper-stack *, .preview-paper { transition: none !important; }
+  .paper-stack:hover .preview-paper { transform: rotate(-8deg) rotateY(-10deg) rotateX(9deg) translateZ(12px); }
+}
