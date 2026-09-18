@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f4f0">
+  <title>小炫旅行 · Shared Ledger</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#itinerary"><span class="brand-mark">炫</span><span>小炫旅行<small>SHARED LEDGER</small></span></a>
+    <div class="sidebar-caption">一起出发，也一起记录</div>
+    <nav aria-label="主导航">
+      <button data-view="itinerary" class="nav-item active"><span>▤</span>旅行行程</button>
+      <button data-view="ledger" class="nav-item"><span>▥</span>共享账本</button>
+      <button data-view="media" class="nav-item"><span>▧</span>相册与水印</button>
+    </nav>
+    <div class="side-trip"><span class="eyebrow">THIS LITTLE JOURNEY</span><p>杭州，慢慢走。</p><span>09.26 — 09.27 / 2 DAYS</span><div class="mini-landscape" aria-hidden="true"><i></i><i></i><i></i><b>杭州</b></div></div>
+    <button class="agent-entry" data-action="agent"><img src="tangyuan.svg" alt="小炫汤圆临时头像"><span>小炫汤圆<small>帮你留一点发呆的时间</small></span><b>↗</b></button>
+    <div class="prototype-note">交互样稿 · 数据保存在本机<br>地图与 Agent 为演示，水印待接入</div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><div class="breadcrumb">我的旅行 <span>/</span> <strong>杭州两日</strong></div><div class="top-actions"><span class="avatars" aria-label="4位同行者"><i>我</i><i>林</i><i>陈</i><i>余</i></span><button class="quiet" data-action="export">↗ 导出行程</button></div></header>
+    <main>
+      <div class="page-heading"><div><span class="eyebrow" id="page-kicker">A LITTLE GETAWAY</span><h1 id="page-title">杭州，慢慢走。</h1><p id="page-subtitle">留一点空白，给路上的惊喜。</p></div><span class="trip-stamp">HANGZHOU<br><b>26 — 27</b><small>SEP / 2026</small></span></div>
+      <div class="content-grid">
+        <section id="primary" aria-label="旅行内容"></section>
+        <aside class="context-panel">
+          <section class="export-stage" aria-label="行程导出预览">
+            <div class="export-heading"><span class="eyebrow">TAKE YOUR TRIP WITH YOU</span><h2>把旅程，<br>装进一张纸。</h2><p>行程清单 · 随时翻看</p></div>
+            <div class="paper-stack"><div class="back-paper"></div><button class="preview-paper" data-action="export" aria-label="展开正视行程导出预览"><div id="paper-preview"></div></button></div>
+            <button class="export-link" data-action="export">预览与导出 <span>↗</span></button>
+          </section>
+          <section class="companion"><div class="companion-head"><img src="tangyuan.svg" alt="小炫汤圆临时头像"><div><strong>小炫汤圆</strong><small>你的旅行搭子</small></div><span class="tiny-tag">演示</span></div><p>想把行程排得松一点？<br>把喜欢的留下，其他的慢慢来。</p><button class="wide-link" data-action="agent">调整我的旅行偏好 <span>↗</span></button></section>
+          <p class="side-footnote">不追踪位置。每一站，由你亲手记录。</p>
+        </aside>
+      </div>
+    </main>
+    <footer>小炫旅行 <span>A journey worth keeping.</span><button data-action="reset">重置演示</button></footer>
+  </div>
+  <dialog id="export-dialog" aria-labelledby="export-title"><header class="dialog-head"><div><span class="eyebrow">READY TO GO</span><h2 id="export-title">你的随行清单</h2></div><button data-close="export-dialog" class="icon-button" aria-label="关闭预览">×</button></header><div id="export-document" class="document"></div><div class="dialog-actions"><p>打印窗口中可选择“另存为 PDF”</p><button class="primary-button" data-action="print">打印 / 保存 PDF ↗</button></div></dialog>
+  <dialog id="agent-dialog" aria-labelledby="agent-title"><header class="dialog-head"><div class="companion-head"><img src="tangyuan.svg" alt=""><div><h2 id="agent-title">和小炫汤圆一起规划</h2><small>偏好驱动的本地演示，未调用大模型</small></div></div><button data-close="agent-dialog" class="icon-button" aria-label="关闭规划">×</button></header><form id="preferences-form"><div class="form-grid"><label>目的地<input name="destination" value="杭州" readonly><small>第一版样稿只演示杭州</small></label><label>同行人数<input name="people" type="number" min="1" max="20" required></label><label>旅行总预算 · 元<input name="budget" type="number" min="1" max="1000000" required></label><label>行程节奏<select name="pace"><option value="relaxed">轻松，留些空白</option><option value="balanced">适中，刚刚好</option><option value="packed">紧凑，多走几站</option></select></label><label>旅行风格<select name="style"><option value="culture">文化体验</option><option value="classic">经典必去</option><option value="nature">自然漫游</option></select></label><label>住宿偏好<select name="stay"><option value="lake">西湖周边</option><option value="metro">地铁附近</option><option value="quiet">安静街区</option></select></label></div><div class="form-note">已锁定的安排会保留。生成草案后，你可以先看变化，再决定是否采纳。</div><button class="primary-button" type="submit">生成演示草案 ↗</button></form><section id="proposal" hidden aria-live="polite"></section></dialog>
+  <dialog id="bill-dialog" aria-labelledby="bill-title"><header class="dialog-head"><h2 id="bill-title">记下这一笔</h2><button data-close="bill-dialog" class="icon-button" aria-label="关闭记账">×</button></header><form id="bill-form"><label>消费名称<input name="title" maxlength="50" required placeholder="例如：湖边的午餐"></label><div class="form-grid"><label>总金额 · 元<input name="amount" type="number" min="0.01" max="1000000" step="0.01" required></label><label>付款人<select name="payer"><option>我</option><option>小林</option><option>小陈</option><option>小余</option></select></label><label>类别<select name="category"><option>餐饮</option><option>交通</option><option>住宿</option><option>门票</option><option>其他</option></select></label><label>日期<select name="day"><option value="0">9 月 26 日</option><option value="1">9 月 27 日</option></select></label></div><p class="form-note">样稿默认由账本的 4 位成员均分，与规划人数独立。金额按分计算，余数依成员顺序分配。</p><button class="primary-button" type="submit">保存账单</button></form></dialog>
+  <dialog id="activity-dialog" aria-labelledby="activity-title"><header class="dialog-head"><h2 id="activity-title">加一张行程卡</h2><button data-close="activity-dialog" class="icon-button" aria-label="关闭行程编辑">×</button></header><form id="activity-form"><label>地点 / 活动<input name="title" maxlength="40" required></label><div class="form-grid"><label>开始时间<input name="time" type="time" required></label><label>停留分钟<input name="duration" type="number" min="15" max="600" required value="60"></label></div><label>随手记<input name="note" maxlength="100" placeholder="例如：提前预约，记得带证件"></label><p class="form-note">本地样稿按时间排序并检查活动重叠，交通时间留待真实路线接入校验。</p><button class="primary-button" type="submit">保存安排</button><p id="activity-error" role="alert"></p></form></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
