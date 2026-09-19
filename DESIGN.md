@@ -28,3 +28,9 @@ Restrained：暖灰纸底 oklch(0.97 0.006 85)，炭灰正文 oklch(0.27 0.008 7
 ## Navigation and contextual actions (2026-09-19)
 
 Use Itinerary / Ledger / Gallery for the three main labels. Preserve one responsive design. The left character from the new two-character reference represents Itinerary; the right represents Gallery. Ledger retains its existing image. Ledger uses its own bill-summary paper preview and 帮我算账; Gallery omits itinerary export and assistant controls. Group ledger operations into 明细 / 统计 / 成员 / 审批 / 结算 / 设置 to keep the first screen quiet.
+
+## 入口、文案与字体更新
+
+Trip / Ledger 先进入“已有、新建、历史”列表，再进入详情；历史以手动归档为准，可查看记录并恢复。保持手机底部三入口。创建与关联编辑采用内联表单。
+
+文案用“西湖、午餐、酒店入住”等具体名称，去掉抒情句。中文使用 PingFang SC / 系统黑体，时间、金额、日期统一无衬线等宽数字；英文地名降为辅助信息，不再用衬线。日期牌保留轻微倾斜，增加纸张厚度和投影，点击展开日期与绑定设置，hover/focus 扶正，按压回落，减少动态设置下不做过渡。

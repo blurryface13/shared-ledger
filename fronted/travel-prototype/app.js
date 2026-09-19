@@ -5,20 +5,20 @@ const initial = {
   prefs: { people: 4, budget: 4000, pace: 'relaxed', style: 'culture', stay: 'lake' },
   days: [
     [
-      { id: 'a1', time: '09:30', duration: 90, title: '西湖，沿着湖边走走', english: 'A morning by West Lake', note: '从断桥出发，今天不用赶路。', color: 'blue', locked: false, done: false },
-      { id: 'a2', time: '12:00', duration: 60, title: '湖边的午餐', english: 'Lunch, with a view', note: '找一家顺眼的小店，慢慢吃。', color: 'rose', locked: false, done: false },
-      { id: 'a3', time: '14:00', duration: 120, title: '中国茶叶博物馆', english: 'China National Tea Museum', note: '把下午留给茶香。开放与预约信息待确认。', color: 'sage', locked: false, done: false },
-      { id: 'a4', time: '17:00', duration: 45, title: '入住 · 湖畔小住', english: 'A place to slow down', note: '已锁定的住宿安排 · 示例订单', color: 'rose', locked: true, done: false }
+      { id: 'a1', time: '09:30', duration: 90, title: '西湖', english: 'West Lake', note: '起点：断桥。', color: 'blue', locked: false, done: false },
+      { id: 'a2', time: '12:00', duration: 60, title: '午餐', english: 'Lunch', note: '餐厅待定。', color: 'rose', locked: false, done: false },
+      { id: 'a3', time: '14:00', duration: 120, title: '中国茶叶博物馆', english: 'China National Tea Museum', note: '开放时间与预约待确认。', color: 'sage', locked: false, done: false },
+      { id: 'a4', time: '17:00', duration: 45, title: '酒店入住', english: 'Check-in', note: '已锁定的住宿安排 · 示例订单', color: 'rose', locked: true, done: false }
     ],
     [
-      { id: 'b1', time: '09:00', duration: 90, title: '九溪烟树', english: 'A walk through the green', note: '带一瓶水，穿一双好走的鞋。', color: 'sage', locked: false, done: false },
-      { id: 'b2', time: '12:00', duration: 60, title: '山间午餐', english: 'A table in the hills', note: '今天的午餐，留给沿途的发现。', color: 'rose', locked: false, done: false },
-      { id: 'b3', time: '14:00', duration: 90, title: '河坊街', english: 'One last little wander', note: '给朋友带一点小礼物，再慢慢回家。', color: 'blue', locked: false, done: false }
+      { id: 'b1', time: '09:00', duration: 90, title: '九溪烟树', english: 'Jiuxi', note: '步行游览。', color: 'sage', locked: false, done: false },
+      { id: 'b2', time: '12:00', duration: 60, title: '午餐', english: 'Lunch', note: '餐厅待定。', color: 'rose', locked: false, done: false },
+      { id: 'b3', time: '14:00', duration: 90, title: '河坊街', english: 'Hefang Street', note: '步行街。', color: 'blue', locked: false, done: false }
     ]
   ],
   bills: [
-    { id: 'e1', title: '湖畔小住 · 两间房', cents: 128000, payer: '我', category: '住宿', day: 0 },
-    { id: 'e2', title: '湖边的午餐', cents: 18600, payer: '小林', category: '餐饮', day: 0 },
+    { id: 'e1', title: '酒店 · 两间房', cents: 128000, payer: '我', category: '住宿', day: 0 },
+    { id: 'e2', title: '午餐', cents: 18600, payer: '小林', category: '餐饮', day: 0 },
     { id: 'e3', title: '车站到西湖', cents: 4800, payer: '小陈', category: '交通', day: 0 },
     { id: 'e4', title: '四杯桂花拿铁', cents: 6000, payer: '小余', category: '餐饮', day: 0 }
   ]
@@ -26,7 +26,7 @@ const initial = {
 let state = structuredClone(initial);
 try {
   const saved = JSON.parse(localStorage.getItem(storageKey));
-  if (saved && Array.isArray(saved.days) && saved.days.length === 2 && saved.days.every(Array.isArray) && Array.isArray(saved.bills) && saved.prefs) state = saved;
+  if (saved && Array.isArray(saved.days) && saved.days.length >= 1 && saved.days.every(Array.isArray) && Array.isArray(saved.bills) && saved.prefs) state = saved;
 } catch { /* A private window or corrupt storage must not prevent preview. */ }
 let view = ['itinerary', 'ledger', 'media'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'itinerary';
 let day = 0, expanded = null, editingId = null, linkedActivity = null, showRoute = false, proposal = null, mediaType = 'gallery';
@@ -36,6 +36,13 @@ const money = (cents) => (cents / 100).toLocaleString('zh-CN', { minimumFraction
 const minutes = (time) => Number(time.split(':')[0]) * 60 + Number(time.split(':')[1]);
 const duration = (value) => value >= 60 ? `${Math.floor(value / 60)} 小时${value % 60 ? ` ${value % 60} 分` : ''}` : `${value} 分钟`;
 const total = () => state.bills.reduce((sum, bill) => sum + bill.cents, 0);
+function tripDate(index=0) {
+  const date = new Date((state.trip?.start || '2026-09-26')+'T12:00:00Z');
+  date.setUTCDate(date.getUTCDate()+Number(index)); return date.toISOString().slice(0,10);
+}
+function dateLabel(value) { return String(value).replaceAll('-', '.'); }
+function tripDayLabel(index) { return dateLabel(tripDate(index)).slice(5); }
+function billDate(bill) { return bill.date || new Date(new Date((state.ledger?.start || '2026-09-26')+'T12:00:00Z').getTime()+Number(bill.day||0)*86400000).toISOString().slice(0,10); }
 function save() {
   try { localStorage.setItem(storageKey, JSON.stringify(state)); }
   catch { toast('浏览器未允许保存，本次修改仅在当前页面保留'); }
@@ -47,14 +54,14 @@ function toast(message) {
   toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 3200);
 }
 function documentHtml() {
-  return `<div class="paper-brand">SHARED LEDGER</div><div class="paper-title">杭州两日 · 随行清单</div><p class="paper-meta">2026.09.26 — 09.27 · ${esc(state.prefs.people)} 人 · 规划总预算 ¥${Number(state.prefs.budget).toLocaleString('zh-CN')}</p>${state.days.map((items, index) => `<section class="paper-day"><b>第 ${index + 1} 天 / 9 月 ${26 + index} 日</b>${items.map(item => `<div class="paper-row"><span>${esc(item.time)}</span><div>${esc(item.title)}${item.done ? ' ✓' : ''}<small>${duration(item.duration)}${item.locked ? ' · 已锁定' : ''} · ${esc(item.note)}</small></div></div>`).join('')}</section>`).join('')}<p class="paper-meta" style="margin-top:20px">本地演示行程 · 地点、开放时间与交通尚待核实<br>不含私密账单凭据。</p>`;
+  return `<div class="paper-brand">SHARED LEDGER</div><div class="paper-title">${esc(state.trip?.name || "杭州两日")} · 行程单</div><p class="paper-meta">${dateLabel(tripDate())} 至 ${dateLabel(tripDate(state.days.length-1))} · ${esc(state.prefs.people)} 人 · 规划总预算 ¥${Number(state.prefs.budget).toLocaleString('zh-CN')}</p>${state.days.map((items, index) => `<section class="paper-day"><b>第 ${index + 1} 天 / ${tripDayLabel(index)}</b>${items.map(item => `<div class="paper-row"><span>${esc(item.time)}</span><div>${esc(item.title)}${item.done ? ' ✓' : ''}<small>${duration(item.duration)}${item.locked ? ' · 已锁定' : ''} · ${esc(item.note)}</small></div></div>`).join('')}</section>`).join('')}<p class="paper-meta" style="margin-top:20px">本地演示行程 · 地点、开放时间与交通尚待核实<br>不含私密账单凭据。</p>`;
 }
 function routeHtml() {
   return `<section class="route-diagram"><header><strong>今日路线 · 示意</strong><button data-action="play-route">播放 / 暂停</button></header><svg viewBox="0 0 400 165" role="img" aria-label="行程顺序示意，不代表真实道路"><path d="M 28 125 C 85 125 63 40 134 45 S 206 130 265 92 S 328 38 370 45" stroke="#93a8a5" stroke-width="2" stroke-dasharray="5 5" fill="none"/><g fill="#f9f8f2" stroke="#6f8580" stroke-width="2"><circle cx="28" cy="125" r="8"/><circle cx="134" cy="45" r="8"/><circle cx="265" cy="92" r="8"/><circle cx="370" cy="45" r="8"/></g><g fill="#374641" font-size="10" text-anchor="middle"><text x="28" y="149">第一站</text><text x="134" y="24">第二站</text><text x="265" y="120">第三站</text><text x="366" y="23">终点</text></g><circle class="route-dot" cx="0" cy="0" r="7" fill="#c29a40" transform="translate(28 125)"/></svg><p>仅展示路线动画方向，真实道路与耗时将在地图接入后提供。</p></section>`;
 }
 function itineraryHtml() {
   const items = state.days[day];
-  return `<div class="day-tabs"><button class="day-tab ${day === 0 ? 'active' : ''}" data-day="0">第 1 天 · 09.26</button><button class="day-tab ${day === 1 ? 'active' : ''}" data-day="1">第 2 天 · 09.27</button><button class="map-toggle" data-action="route">${showRoute ? '收起' : '⌁ 查看'}路线</button></div><div class="day-title"><div><h2>第 ${day + 1} 天</h2><p>9 月 ${26 + day} 日 ${day ? '周日' : '周六'} · Hangzhou UTC+8</p></div><small>${items.filter(x => x.done).length} / ${items.length} 已完成</small></div><div class="base-line"><span>⌂</span><b>Base</b><span>湖畔小住 · 西湖周边（示例）</span></div>${showRoute ? routeHtml() : ''}${items.map((item, index) => `${index ? `<div class="connection"><span class="arrow">⇢</span><span>前往下一站</span><span class="route-note">交通方式与耗时待查询</span></div>${minutes(item.time) - minutes(items[index - 1].time) - items[index - 1].duration >= 45 ? `<div class="free-time">间隔 ${duration(minutes(item.time) - minutes(items[index - 1].time) - items[index - 1].duration)} · 含待确认交通时间</div>` : ''}` : ''}<article class="activity ${esc(item.color)}"><button class="card-open" data-expand="${esc(item.id)}" aria-expanded="${expanded === item.id}"><div class="activity-top"><span class="activity-time">${esc(item.time)}</span><span class="pill">${item.done ? '✓ 已打卡' : item.locked ? '⌑ 已锁定' : '○ 待出发'}</span></div><div class="activity-title"><h3>${esc(item.title)}</h3><span>${duration(item.duration)}</span></div><p class="english">${esc(item.english)}</p><p class="activity-note">${esc(item.note)}</p></button>${expanded === item.id ? `<div class="activity-actions"><button data-complete="${esc(item.id)}">${item.done ? '撤销打卡' : '✓ 手动打卡'}</button><button data-bill="${esc(item.id)}">＋ 记一笔</button><button data-lock="${esc(item.id)}">${item.locked ? '解锁' : '锁定'}</button><button data-edit="${esc(item.id)}" ${item.locked ? 'disabled' : ''}>编辑</button><button data-delete="${esc(item.id)}" ${item.locked || item.done ? 'disabled' : ''}>移除</button></div>` : ''}</article>`).join('')}<button class="add-card" data-action="add-activity">＋ 加一张行程卡</button>`;
+  return `<div class="day-tabs">${state.days.map((_,i)=>`<button class="day-tab ${day===i?'active':''}" data-day="${i}">第 ${i+1} 天 · ${tripDayLabel(i)}</button>`).join('')}<button class="map-toggle" data-action="route">${showRoute ? '收起' : '⌁ 查看'}路线</button></div><div class="day-title"><div><h2>第 ${day + 1} 天</h2><p>${dateLabel(tripDate(day))} · ${esc(state.trip?.destination || "杭州")}</p></div><small>${items.filter(x => x.done).length} / ${items.length} 已完成</small></div><div class="base-line"><span>⌂</span><b>Base</b><span>${state.trip?.id && state.trip.id!=="trip-demo"?"住宿待安排":"西湖周边酒店（示例）"}</span></div>${showRoute ? routeHtml() : ''}${items.map((item, index) => `${index ? `<div class="connection"><span class="arrow">⇢</span><span>前往下一站</span><span class="route-note">交通方式与耗时待查询</span></div>${minutes(item.time) - minutes(items[index - 1].time) - items[index - 1].duration >= 45 ? `<div class="free-time">间隔 ${duration(minutes(item.time) - minutes(items[index - 1].time) - items[index - 1].duration)} · 含待确认交通时间</div>` : ''}` : ''}<article class="activity ${esc(item.color)}"><button class="card-open" data-expand="${esc(item.id)}" aria-expanded="${expanded === item.id}"><div class="activity-top"><span class="activity-time">${esc(item.time)}</span><span class="pill">${item.done ? '✓ 已打卡' : item.locked ? '⌑ 已锁定' : '○ 待出发'}</span></div><div class="activity-title"><h3>${esc(item.title)}</h3><span>${duration(item.duration)}</span></div><p class="english">${esc(item.english)}</p><p class="activity-note">${esc(item.note)}</p></button>${expanded === item.id ? `<div class="activity-actions"><button data-complete="${esc(item.id)}">${item.done ? '撤销打卡' : '✓ 手动打卡'}</button><button data-bill="${esc(item.id)}">＋ 记一笔</button><button data-lock="${esc(item.id)}">${item.locked ? '解锁' : '锁定'}</button><button data-edit="${esc(item.id)}" ${item.locked ? 'disabled' : ''}>编辑</button><button data-delete="${esc(item.id)}" ${item.locked || item.done ? 'disabled' : ''}>移除</button></div>` : ''}</article>`).join('')}<button class="add-card" data-action="add-activity">＋ 加一张行程卡</button>`;
 }
 function settlementHtml() {
   const paid = Object.fromEntries(members.map(name => [name, 0]));
@@ -103,7 +110,7 @@ function openBill(activity = null) {
   const form = $('#bill-form'); form.reset();
   linkedActivity = activity?.id || null;
   form.elements.title.value = activity?.title || '';
-  form.elements.day.value = day;
+  form.elements.date.value = tripDate(day);
   $('#bill-dialog').showModal();
 }
 function openActivity(item = null) {
@@ -149,7 +156,7 @@ $('#bill-form').addEventListener('submit', (event) => {
   const cents = Math.round(Number(data.get('amount')) * 100);
   const title = String(data.get('title')).trim();
   if (!title || !Number.isSafeInteger(cents) || cents <= 0) return;
-  state.bills.push({ id: crypto.randomUUID(), title, cents, payer: data.get('payer'), category: data.get('category'), day: Number(data.get('day')), activityId: linkedActivity });
+  state.bills.push({ id: crypto.randomUUID(), title, cents, payer: data.get('payer'), category: data.get('category'), day, date: data.get('date'), activityId: linkedActivity });
   save(); $('#bill-dialog').close(); view = 'ledger'; history.replaceState(null, '', '#ledger'); render(); toast('已记录在本机演示账本中');
 });
 $('#activity-form').addEventListener('submit', (event) => {
@@ -161,7 +168,7 @@ $('#activity-form').addEventListener('submit', (event) => {
     $('#activity-error').textContent = end > 1440 ? '这张卡跨过了午夜，请拆分为两天。' : '这段时间已有安排，请调整开始时间或停留时长。'; return;
   }
   const existing = state.days[day].find(item => item.id === editingId);
-  const item = { id: editingId || crypto.randomUUID(), title, time, duration: length, note: String(data.get('note')).trim(), english: existing?.english || 'A moment of your own', color: existing?.color || 'blue', locked: existing?.locked || false, done: existing?.done || false };
+  const item = { id: editingId || crypto.randomUUID(), title, time, duration: length, note: String(data.get('note')).trim(), english: existing?.english || '', color: existing?.color || 'blue', locked: existing?.locked || false, done: existing?.done || false };
   state.days[day] = [...state.days[day].filter(x => x.id !== editingId), item].sort((a, b) => minutes(a.time) - minutes(b.time));
   save(); $('#activity-dialog').close(); expanded = item.id; render(); toast('行程已保存到本机');
 });
