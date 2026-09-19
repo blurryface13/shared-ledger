@@ -1,0 +1,55 @@
+.route-screen .content-grid { display: block; }
+.route-screen .page-heading { margin-bottom: 25px; }
+.route-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.route-toolbar h2 { font-size: 24px; margin-top: 7px; }
+.route-toolbar p { color: var(--muted); font-size: 12px; margin-top: 5px; }
+.route-return { font-size: 12px; }
+.route-days { display: flex; gap: 8px; overflow-x: auto; margin: 24px 0; }
+.route-days button { flex-shrink: 0; border: 1px solid var(--line); border-radius: 10px; padding: 9px 17px; font-size: 12px; }
+.route-days button span { margin-left: 9px; font-variant-numeric: tabular-nums; opacity: .7; }
+.route-days button.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.route-layout { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(240px,1fr); gap: 28px; }
+.map-stage { position: relative; background: oklch(.95 .014 89); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; min-width: 0; }
+.map-stage svg { width: 100%; display: block; min-height: 380px; }
+.map-grid { color: oklch(.8 .02 80); }
+.map-land { fill: oklch(.87 .029 132); }
+.map-water { fill: oklch(.85 .033 221); stroke: oklch(.8 .03 221); stroke-width: 3; }
+.map-streets { stroke: oklch(.83 .012 80); stroke-width: 15; }
+.map-street-inner { stroke: oklch(.985 .006 80); stroke-width: 11; }
+.map-route-line { stroke: oklch(.47 .06 150); stroke-width: 4; fill: none; stroke-linecap: round; }
+.map-route-line.walk { stroke-dasharray: 6 7; }
+.map-marker circle { fill: var(--paper); stroke: oklch(.5 .045 150); stroke-width: 2; }
+.map-marker text { fill: var(--ink); font-size: 14px; font-weight: 600; }
+.map-marker.selected circle { fill: oklch(.39 .04 150); stroke: var(--paper); stroke-width: 4; }
+.map-marker.selected text { fill: var(--paper); }
+.route-traveler { color: oklch(.62 .12 70); stroke: var(--paper); stroke-width: 3; }
+.map-caption { position: absolute; z-index: 1; top: 20px; left: 20px; background: var(--paper); padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; }
+.map-caption span { display: block; font-size: 12px; font-weight: 500; }
+.map-caption small { font-size: 10px; color: var(--muted); }
+.map-controls { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--paper); border-top: 1px solid var(--line); }
+.route-mode { display: flex; gap: 3px; }
+.route-mode button { font-size: 12px; padding: 8px 14px; border-radius: 8px; }
+.route-mode button[aria-pressed=true] { background: var(--sage); }
+.route-play { font-size: 12px; font-weight: 500; }
+.route-list-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 18px; }
+.route-list-head h3 { font-size: 17px; }
+.route-list-head > span { color: var(--muted); font-size: 12px; }
+.route-stop { display: flex; align-items: center; gap: 13px; width: 100%; text-align: left; padding: 17px 8px; border-top: 1px solid var(--line); }
+.route-stop.active { background: var(--sage); border-radius: 10px; border-color: transparent; }
+.stop-number { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.route-stop strong { display: block; font-size: 14px; font-weight: 500; }
+.route-stop small { display: block; color: var(--muted); font-size: 11px; margin-top: 5px; }
+.stop-arrow { margin-left: auto; font-size: 14px; }
+.route-selected { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.route-selected h3 { font-size: 21px; margin: 8px 0; }
+.route-selected p { color: var(--muted); font-size: 12px; }
+.route-selected button { padding: 12px 0; font-size: 12px; }
+.route-data-note { display: flex; align-items: start; gap: 10px; margin-top: 20px; }
+.route-data-note p { max-width: 75ch; font-size: 11px; color: var(--muted); line-height: 1.8; }
+.route-data-dot { width: 6px; height: 6px; background: oklch(.65 .09 80); border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+.map-empty { position: absolute; inset: 30% 20px auto; text-align: center; background: var(--paper); padding: 20px; border-radius: 12px; }
+.map-empty h3 { font-size: 18px; }.map-empty p { font-size: 12px; margin: 10px 0 15px; }
+@media(max-width:950px) { .route-layout { grid-template-columns: 1fr; }.map-stage svg { max-height: 480px; } }
+@media(max-width:640px) { .map-stage svg { min-height: 0; height: 350px; }.map-caption { top: 12px; left: 12px; padding: 7px 10px; }.route-toolbar h2 { font-size: 21px; }.route-layout { gap: 25px; }.map-controls { padding: 8px 10px; }.route-stop { min-height: 72px; }.route-days { margin: 20px 0; } }
+
+.map-marker { cursor: pointer; }.map-marker:focus-visible circle { stroke: oklch(.63 .12 70); stroke-width: 5; }
