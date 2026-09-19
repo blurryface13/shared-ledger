@@ -19,7 +19,8 @@ import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoCon
     "com.spvermicelli.tripledger.billing.infrastructure.persistence.mapper",
     "com.spvermicelli.tripledger.settlement.infrastructure.persistence.mapper",
     "com.spvermicelli.tripledger.export.infrastructure.persistence.mapper",
-    "com.spvermicelli.tripledger.shared.infrastructure.persistence.mapper"
+    "com.spvermicelli.tripledger.shared.infrastructure.persistence.mapper",
+    "com.spvermicelli.tripledger.travel.infrastructure.persistence.mapper"
 })
 public class TripLedgerApplication {
 

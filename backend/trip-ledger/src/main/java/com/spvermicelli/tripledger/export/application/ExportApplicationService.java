@@ -12,6 +12,7 @@ import com.spvermicelli.tripledger.billing.application.statistics.StatisticsAppl
 import com.spvermicelli.tripledger.export.application.result.ExportRecordResult;
 import com.spvermicelli.tripledger.export.domain.model.ExportRecord;
 import com.spvermicelli.tripledger.export.domain.repository.ExportRecordRepository;
+import com.spvermicelli.tripledger.export.infrastructure.messaging.ExportTaskPublisher;
 import com.spvermicelli.tripledger.ledger.domain.book.model.Book;
 import com.spvermicelli.tripledger.ledger.domain.book.model.BookMember;
 import com.spvermicelli.tripledger.ledger.domain.book.repository.BookMemberRepository;
@@ -21,6 +22,7 @@ import com.spvermicelli.tripledger.ledger.domain.category.repository.BookCategor
 import com.spvermicelli.tripledger.shared.common.enums.ErrorCode;
 import com.spvermicelli.tripledger.shared.common.exception.BusinessException;
 import com.spvermicelli.tripledger.shared.common.response.PageResponse;
+import com.spvermicelli.tripledger.shared.domain.enums.ExportStatus;
 import com.spvermicelli.tripledger.shared.domain.enums.ExportType;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -34,10 +36,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 导出应用服务。
- * V1 当前先返回 JSON 快照和占位 fileUrl，后续接入真实文件生成器时只需替换基础设施实现。
+ * 当前版本使用 RabbitMQ 将导出拆成“创建任务”和“异步生成快照”两段。
  */
 @Service
 public class ExportApplicationService {
@@ -51,6 +55,7 @@ public class ExportApplicationService {
     private final StatisticsApplicationService statisticsApplicationService;
     private final BookCategoryRepository bookCategoryRepository;
     private final ObjectMapper objectMapper;
+    private final ExportTaskPublisher exportTaskPublisher;
 
     public ExportApplicationService(
         BookRepository bookRepository,
@@ -59,7 +64,8 @@ public class ExportApplicationService {
         BillApplicationService billApplicationService,
         StatisticsApplicationService statisticsApplicationService,
         BookCategoryRepository bookCategoryRepository,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        ExportTaskPublisher exportTaskPublisher
     ) {
         this.bookRepository = bookRepository;
         this.bookMemberRepository = bookMemberRepository;
@@ -68,11 +74,89 @@ public class ExportApplicationService {
         this.statisticsApplicationService = statisticsApplicationService;
         this.bookCategoryRepository = bookCategoryRepository;
         this.objectMapper = objectMapper;
+        this.exportTaskPublisher = exportTaskPublisher;
     }
 
     @Transactional
     public ExportRecordResult exportPersonalDetail(Long currentUserId, Long bookId) {
         BookMember currentMember = requireActiveMember(bookId, currentUserId);
+        return createExportTask(bookId, currentMember.getId(), ExportType.PERSONAL_DETAIL);
+    }
+
+    @Transactional
+    public ExportRecordResult exportBookSummary(Long currentUserId, Long bookId) {
+        BookMember currentMember = requireActiveMember(bookId, currentUserId);
+        Book book = bookRepository.findById(bookId)
+            .filter(Book::isActive)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "账本不存在"));
+        if (!Objects.equals(book.getOwnerUserId(), currentUserId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅账本创建者可以导出全账本消费汇总");
+        }
+        return createExportTask(bookId, currentMember.getId(), ExportType.BOOK_SUMMARY);
+    }
+
+    @Transactional(noRollbackFor = RuntimeException.class)
+    public void processExportTask(Long exportRecordId) {
+        ExportRecord record = exportRecordRepository.findById(exportRecordId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "导出记录不存在"));
+        if (record.getExportStatus() == ExportStatus.SUCCESS) {
+            return;
+        }
+
+        LocalDateTime startedAt = LocalDateTime.now();
+        ExportRecord runningRecord = exportRecordRepository.save(ExportRecord.builder()
+            .id(record.getId())
+            .bookId(record.getBookId())
+            .operatorMemberId(record.getOperatorMemberId())
+            .exportType(record.getExportType())
+            .exportStatus(ExportStatus.RUNNING)
+            .fileUrl(record.getFileUrl())
+            .errorMessage(null)
+            .createdAt(record.getCreatedAt())
+            .startedAt(startedAt)
+            .finishedAt(null)
+            .build());
+
+        try {
+            BookMember operator = bookMemberRepository.findById(runningRecord.getOperatorMemberId())
+                .filter(BookMember::isActive)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "导出发起成员不存在"));
+            Map<String, Object> exportContent = runningRecord.getExportType() == ExportType.BOOK_SUMMARY
+                ? buildBookSummaryContent(operator.getUserId(), runningRecord.getBookId())
+                : buildPersonalDetailContent(operator.getUserId(), runningRecord.getBookId());
+            String snapshot = toJson(exportContent);
+            exportRecordRepository.save(ExportRecord.builder()
+                .id(runningRecord.getId())
+                .bookId(runningRecord.getBookId())
+                .operatorMemberId(runningRecord.getOperatorMemberId())
+                .exportType(runningRecord.getExportType())
+                .exportStatus(ExportStatus.SUCCESS)
+                .fileUrl(null)
+                .exportContentJson(snapshot)
+                .errorMessage(null)
+                .createdAt(runningRecord.getCreatedAt())
+                .startedAt(startedAt)
+                .finishedAt(LocalDateTime.now())
+                .build());
+        } catch (RuntimeException exception) {
+            log.error("Failed to process export task: {}", exportRecordId, exception);
+            exportRecordRepository.save(ExportRecord.builder()
+                .id(runningRecord.getId())
+                .bookId(runningRecord.getBookId())
+                .operatorMemberId(runningRecord.getOperatorMemberId())
+                .exportType(runningRecord.getExportType())
+                .exportStatus(ExportStatus.FAILED)
+                .fileUrl(null)
+                .errorMessage(exception.getMessage())
+                .createdAt(runningRecord.getCreatedAt())
+                .startedAt(startedAt)
+                .finishedAt(LocalDateTime.now())
+                .build());
+            throw exception;
+        }
+    }
+
+    private Map<String, Object> buildPersonalDetailContent(Long currentUserId, Long bookId) {
         Map<String, Object> exportContent = new HashMap<>();
         exportContent.put("overview", toOverviewMap(statisticsApplicationService.getOverview(currentUserId, bookId)));
         exportContent.put("categoryConsumption", statisticsApplicationService.getCategoryConsumption(currentUserId, bookId).stream()
@@ -84,15 +168,13 @@ public class ExportApplicationService {
         exportContent.put("attachedTempDetails", statisticsApplicationService.getAttachedTempDetails(currentUserId, bookId).stream()
             .map(this::toAttachedTempDetailMap)
             .toList());
-        exportContent.put("billList", billApplicationService.getVisibleBills(currentUserId, bookId, 1, 500).getList().stream()
+        exportContent.put("billList", allVisibleBills(currentUserId, bookId).stream()
             .map(this::toBillListItemMap)
             .toList());
-        return saveExportRecord(bookId, currentMember.getId(), ExportType.PERSONAL_DETAIL, exportContent);
+        return exportContent;
     }
 
-    @Transactional
-    public ExportRecordResult exportBookSummary(Long currentUserId, Long bookId) {
-        BookMember currentMember = requireActiveMember(bookId, currentUserId);
+    private Map<String, Object> buildBookSummaryContent(Long currentUserId, Long bookId) {
         Book book = bookRepository.findById(bookId)
             .filter(Book::isActive)
             .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "账本不存在"));
@@ -106,14 +188,15 @@ public class ExportApplicationService {
         Map<Long, Long> memberConsumption = new HashMap<>();
         Map<Long, Long> categoryConsumption = new HashMap<>();
 
-        PageResponse<BillListItemResult> page = billApplicationService.getVisibleBills(currentUserId, bookId, 1, 1000);
-        page.getList().forEach(item -> categoryConsumption.merge(item.getCategoryId(), item.getBillAmountCent(), Long::sum));
+        List<BillListItemResult> visible = allVisibleBills(currentUserId, bookId);
+        visible.forEach(item -> categoryConsumption.merge(item.getCategoryId(), item.getBillAmountCent(), Long::sum));
         activeMembers.forEach(member -> memberConsumption.put(member.getId(), 0L));
 
         Map<String, Object> exportContent = new HashMap<>();
         exportContent.put("bookId", bookId);
         exportContent.put("bookName", book.getName());
-        exportContent.put("exportedAt", LocalDateTime.now());
+        exportContent.put("billList", visible.stream().map(this::toBillListItemMap).toList());
+        exportContent.put("exportedAt", LocalDateTime.now().toString());
         exportContent.put("categorySummary", categoryConsumption.entrySet().stream()
             .map(entry -> {
                 BookCategory category = categoryMap.get(entry.getKey());
@@ -126,7 +209,7 @@ public class ExportApplicationService {
             })
             .toList());
         exportContent.put("statisticsOverviewOfOwner", toOverviewMap(statisticsApplicationService.getOverview(currentUserId, bookId)));
-        return saveExportRecord(bookId, currentMember.getId(), ExportType.BOOK_SUMMARY, exportContent);
+        return exportContent;
     }
 
     @Transactional(readOnly = true)
@@ -139,41 +222,71 @@ public class ExportApplicationService {
                 .bookId(record.getBookId())
                 .operatorMemberId(record.getOperatorMemberId())
                 .exportType(record.getExportType().getCode())
+                .exportStatus(record.getExportStatus().getCode())
                 .fileUrl(record.getFileUrl())
-                .exportContentJson(null)
+                .exportContentJson(record.getExportContentJson())
+                .errorMessage(record.getErrorMessage())
                 .createdAt(record.getCreatedAt())
+                .startedAt(record.getStartedAt())
+                .finishedAt(record.getFinishedAt())
                 .build())
             .toList();
     }
 
-    private ExportRecordResult saveExportRecord(
+    private ExportRecordResult createExportTask(
         Long bookId,
         Long operatorMemberId,
-        ExportType exportType,
-        Map<String, Object> exportContent
+        ExportType exportType
     ) {
         ExportRecord savedRecord = exportRecordRepository.save(ExportRecord.builder()
             .bookId(bookId)
             .operatorMemberId(operatorMemberId)
             .exportType(exportType)
-            .fileUrl("placeholder://exports/" + bookId + "/" + exportType.getCode().toLowerCase() + "/" + System.currentTimeMillis())
+            .exportStatus(ExportStatus.PENDING)
+            .fileUrl(null)
+            .errorMessage(null)
             .createdAt(LocalDateTime.now())
+            .startedAt(null)
+            .finishedAt(null)
             .build());
+        publishExportTaskAfterCommit(savedRecord.getId());
         return ExportRecordResult.builder()
             .exportRecordId(savedRecord.getId())
             .bookId(savedRecord.getBookId())
             .operatorMemberId(savedRecord.getOperatorMemberId())
             .exportType(savedRecord.getExportType().getCode())
+            .exportStatus(savedRecord.getExportStatus().getCode())
             .fileUrl(savedRecord.getFileUrl())
-            .exportContentJson(toJson(exportContent))
+            .exportContentJson(null)
+            .errorMessage(savedRecord.getErrorMessage())
             .createdAt(savedRecord.getCreatedAt())
+            .startedAt(savedRecord.getStartedAt())
+            .finishedAt(savedRecord.getFinishedAt())
             .build();
+    }
+
+    private void publishExportTaskAfterCommit(Long exportRecordId) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                exportTaskPublisher.publish(exportRecordId);
+            }
+        });
     }
 
     private BookMember requireActiveMember(Long bookId, Long currentUserId) {
         return bookMemberRepository.findByBookIdAndUserId(bookId, currentUserId)
             .filter(BookMember::isActive)
             .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "当前用户不在该账本中"));
+    }
+
+    private List<BillListItemResult> allVisibleBills(Long userId, Long bookId) {
+        List<BillListItemResult> result = new java.util.ArrayList<>();
+        for (int pageNo=1;;pageNo++) {
+            PageResponse<BillListItemResult> page = billApplicationService.getVisibleBills(userId,bookId,pageNo,100);
+            result.addAll(page.getList());
+            if(result.size()>=page.getTotal() || page.getList().isEmpty()) return result;
+        }
     }
 
     private String toJson(Object value) {
@@ -245,8 +358,8 @@ public class ExportApplicationService {
         map.put("categoryId", result.getCategoryId());
         map.put("categoryName", result.getCategoryName());
         map.put("categoryIcon", result.getCategoryIcon());
-        map.put("billTime", result.getBillTime());
-        map.put("createdAt", result.getCreatedAt());
+        map.put("billTime", result.getBillTime() == null ? null : result.getBillTime().toString());
+        map.put("createdAt", result.getCreatedAt() == null ? null : result.getCreatedAt().toString());
         map.put("viewerIsPayer", result.isViewerIsPayer());
         map.put("viewerIsRecorder", result.isViewerIsRecorder());
         map.put("viewerHasAttachedTempShare", result.isViewerHasAttachedTempShare());

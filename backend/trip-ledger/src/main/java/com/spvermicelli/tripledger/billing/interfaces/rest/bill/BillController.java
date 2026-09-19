@@ -18,7 +18,10 @@ import com.spvermicelli.tripledger.billing.interfaces.rest.bill.response.BillOpe
 import com.spvermicelli.tripledger.shared.common.context.UserContextHolder;
 import com.spvermicelli.tripledger.shared.common.response.ApiResponse;
 import com.spvermicelli.tripledger.shared.common.response.PageResponse;
+import com.spvermicelli.tripledger.shared.infrastructure.redis.RedisDistributedLockService;
+import com.spvermicelli.tripledger.shared.infrastructure.redis.RedisIdempotencyService;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,9 +42,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class BillController {
 
     private final BillApplicationService billApplicationService;
+    private final RedisDistributedLockService redisDistributedLockService;
+    private final RedisIdempotencyService redisIdempotencyService;
 
-    public BillController(BillApplicationService billApplicationService) {
+    public BillController(
+        BillApplicationService billApplicationService,
+        RedisDistributedLockService redisDistributedLockService,
+        RedisIdempotencyService redisIdempotencyService
+    ) {
         this.billApplicationService = billApplicationService;
+        this.redisDistributedLockService = redisDistributedLockService;
+        this.redisIdempotencyService = redisIdempotencyService;
     }
 
     @GetMapping
@@ -76,20 +87,27 @@ public class BillController {
         @PathVariable Long bookId,
         @Valid @RequestBody CreatePersonalBillRequest request
     ) {
-        BillOperationResult result = billApplicationService.createPersonalBill(CreatePersonalBillCommand.builder()
-            .currentUserId(UserContextHolder.getUserId())
-            .bookId(bookId)
-            .billType(request.getBillType())
-            .title(request.getTitle())
-            .billAmountCent(request.getBillAmountCent())
-            .categoryId(request.getCategoryId())
-            .payerMemberId(request.getPayerMemberId())
-            .recorderMemberId(request.getRecorderMemberId())
-            .tempParticipantId(request.getTempParticipantId())
-            .billTime(request.getBillTime())
-            .remark(request.getRemark())
-            .attachmentUrls(request.getAttachmentUrls())
-            .build());
+        Long currentUserId = UserContextHolder.getUserId();
+        BillOperationResult result = redisIdempotencyService.executeOnce(
+            "bill:create-personal:" + currentUserId + ":" + bookId + ":" + request.getTitle() + ":" + request.getBillAmountCent() + ":" + request.getBillTime(),
+            Duration.ofSeconds(30),
+            () -> redisDistributedLockService.executeWithBookLock(bookId, () ->
+                billApplicationService.createPersonalBill(CreatePersonalBillCommand.builder()
+                    .currentUserId(currentUserId)
+                    .bookId(bookId)
+                    .billType(request.getBillType())
+                    .title(request.getTitle())
+                    .billAmountCent(request.getBillAmountCent())
+                    .categoryId(request.getCategoryId())
+                    .payerMemberId(request.getPayerMemberId())
+                    .recorderMemberId(request.getRecorderMemberId())
+                    .tempParticipantId(request.getTempParticipantId())
+                    .billTime(request.getBillTime())
+                    .remark(request.getRemark())
+                    .attachmentUrls(request.getAttachmentUrls())
+                    .build())
+            )
+        );
         return ApiResponse.success(toBillOperationResponse(result));
     }
 
@@ -98,19 +116,26 @@ public class BillController {
         @PathVariable Long bookId,
         @Valid @RequestBody CreateSharedExpenseBillRequest request
     ) {
-        BillOperationResult result = billApplicationService.createSharedExpenseBill(CreateSharedExpenseBillCommand.builder()
-            .currentUserId(UserContextHolder.getUserId())
-            .bookId(bookId)
-            .title(request.getTitle())
-            .billAmountCent(request.getBillAmountCent())
-            .categoryId(request.getCategoryId())
-            .payerMemberId(request.getPayerMemberId())
-            .recorderMemberId(request.getRecorderMemberId())
-            .billTime(request.getBillTime())
-            .remark(request.getRemark())
-            .attachmentUrls(request.getAttachmentUrls())
-            .shareItems(toShareItemCommands(request.getShareItems()))
-            .build());
+        Long currentUserId = UserContextHolder.getUserId();
+        BillOperationResult result = redisIdempotencyService.executeOnce(
+            "bill:create-shared:" + currentUserId + ":" + bookId + ":" + request.getTitle() + ":" + request.getBillAmountCent() + ":" + request.getBillTime(),
+            Duration.ofSeconds(30),
+            () -> redisDistributedLockService.executeWithBookLock(bookId, () ->
+                billApplicationService.createSharedExpenseBill(CreateSharedExpenseBillCommand.builder()
+                    .currentUserId(currentUserId)
+                    .bookId(bookId)
+                    .title(request.getTitle())
+                    .billAmountCent(request.getBillAmountCent())
+                    .categoryId(request.getCategoryId())
+                    .payerMemberId(request.getPayerMemberId())
+                    .recorderMemberId(request.getRecorderMemberId())
+                    .billTime(request.getBillTime())
+                    .remark(request.getRemark())
+                    .attachmentUrls(request.getAttachmentUrls())
+                    .shareItems(toShareItemCommands(request.getShareItems()))
+                    .build())
+            )
+        );
         return ApiResponse.success(toBillOperationResponse(result));
     }
 
@@ -120,35 +145,39 @@ public class BillController {
         @PathVariable Long billId,
         @Valid @RequestBody UpdateBillRequest request
     ) {
-        BillOperationResult result = billApplicationService.updateBill(UpdateBillCommand.builder()
-            .currentUserId(UserContextHolder.getUserId())
-            .bookId(bookId)
-            .billId(billId)
-            .fromChangeRequest(false)
-            .billType(request.getBillType())
-            .title(request.getTitle())
-            .billAmountCent(request.getBillAmountCent())
-            .categoryId(request.getCategoryId())
-            .payerMemberId(request.getPayerMemberId())
-            .recorderMemberId(request.getRecorderMemberId())
-            .tempParticipantId(request.getTempParticipantId())
-            .billTime(request.getBillTime())
-            .remark(request.getRemark())
-            .attachmentUrls(request.getAttachmentUrls())
-            .shareItems(toUpdateShareItemCommands(request.getShareItems()))
-            .build());
+        BillOperationResult result = redisDistributedLockService.executeWithBookLock(bookId, () ->
+            billApplicationService.updateBill(UpdateBillCommand.builder()
+                .currentUserId(UserContextHolder.getUserId())
+                .bookId(bookId)
+                .billId(billId)
+                .fromChangeRequest(false)
+                .billType(request.getBillType())
+                .title(request.getTitle())
+                .billAmountCent(request.getBillAmountCent())
+                .categoryId(request.getCategoryId())
+                .payerMemberId(request.getPayerMemberId())
+                .recorderMemberId(request.getRecorderMemberId())
+                .tempParticipantId(request.getTempParticipantId())
+                .billTime(request.getBillTime())
+                .remark(request.getRemark())
+                .attachmentUrls(request.getAttachmentUrls())
+                .shareItems(toUpdateShareItemCommands(request.getShareItems()))
+                .build())
+        );
         return ApiResponse.success(toBillOperationResponse(result));
     }
 
     @DeleteMapping("/{billId}")
     public ApiResponse<BillOperationResponse> deleteBill(@PathVariable Long bookId, @PathVariable Long billId) {
-        BillOperationResult result = billApplicationService.deleteBill(
-            com.spvermicelli.tripledger.billing.application.bill.command.DeleteBillCommand.builder()
-                .currentUserId(UserContextHolder.getUserId())
-                .bookId(bookId)
-                .billId(billId)
-                .fromChangeRequest(false)
-                .build()
+        BillOperationResult result = redisDistributedLockService.executeWithBookLock(bookId, () ->
+            billApplicationService.deleteBill(
+                com.spvermicelli.tripledger.billing.application.bill.command.DeleteBillCommand.builder()
+                    .currentUserId(UserContextHolder.getUserId())
+                    .bookId(bookId)
+                    .billId(billId)
+                    .fromChangeRequest(false)
+                    .build()
+            )
         );
         return ApiResponse.success(toBillOperationResponse(result));
     }
@@ -160,12 +189,14 @@ public class BillController {
         @PathVariable Long participantMemberId,
         @Valid @RequestBody(required = false) SettleBillParticipantRequest request
     ) {
-        BillOperationResult result = billApplicationService.settleSharedBillParticipant(
-            UserContextHolder.getUserId(),
-            bookId,
-            billId,
-            participantMemberId,
-            request == null ? null : request.getRemark()
+        BillOperationResult result = redisDistributedLockService.executeWithBookLock(bookId, () ->
+            billApplicationService.settleSharedBillParticipant(
+                UserContextHolder.getUserId(),
+                bookId,
+                billId,
+                participantMemberId,
+                request == null ? null : request.getRemark()
+            )
         );
         return ApiResponse.success(toBillOperationResponse(result));
     }

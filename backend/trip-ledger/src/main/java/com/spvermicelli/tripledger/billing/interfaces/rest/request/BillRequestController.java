@@ -16,7 +16,9 @@ import com.spvermicelli.tripledger.billing.interfaces.rest.request.response.Bill
 import com.spvermicelli.tripledger.billing.interfaces.rest.request.response.BillRequestOperationResponse;
 import com.spvermicelli.tripledger.shared.common.context.UserContextHolder;
 import com.spvermicelli.tripledger.shared.common.response.ApiResponse;
+import com.spvermicelli.tripledger.shared.infrastructure.redis.RedisIdempotencyService;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,9 +32,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class BillRequestController {
 
     private final BillRequestApplicationService billRequestApplicationService;
+    private final RedisIdempotencyService redisIdempotencyService;
 
-    public BillRequestController(BillRequestApplicationService billRequestApplicationService) {
+    public BillRequestController(
+        BillRequestApplicationService billRequestApplicationService,
+        RedisIdempotencyService redisIdempotencyService
+    ) {
         this.billRequestApplicationService = billRequestApplicationService;
+        this.redisIdempotencyService = redisIdempotencyService;
     }
 
     @PostMapping("/bills/{billId}/modify-requests")
@@ -114,12 +121,17 @@ public class BillRequestController {
         @PathVariable Long requestId,
         @Valid @RequestBody(required = false) HandleBillRequestRequest request
     ) {
-        BillRequestOperationResult result = billRequestApplicationService.approveRequest(ApproveBillRequestCommand.builder()
-            .currentUserId(UserContextHolder.getUserId())
-            .bookId(bookId)
-            .requestId(requestId)
-            .approvalComment(request == null ? null : request.getApprovalComment())
-            .build());
+        Long currentUserId = UserContextHolder.getUserId();
+        BillRequestOperationResult result = redisIdempotencyService.executeOnce(
+            "bill-request:approve:" + bookId + ":" + requestId + ":" + currentUserId,
+            Duration.ofMinutes(5),
+            () -> billRequestApplicationService.approveRequest(ApproveBillRequestCommand.builder()
+                .currentUserId(currentUserId)
+                .bookId(bookId)
+                .requestId(requestId)
+                .approvalComment(request == null ? null : request.getApprovalComment())
+                .build())
+        );
         return ApiResponse.success(toOperationResponse(result));
     }
 
@@ -129,12 +141,17 @@ public class BillRequestController {
         @PathVariable Long requestId,
         @Valid @RequestBody(required = false) HandleBillRequestRequest request
     ) {
-        BillRequestOperationResult result = billRequestApplicationService.rejectRequest(RejectBillRequestCommand.builder()
-            .currentUserId(UserContextHolder.getUserId())
-            .bookId(bookId)
-            .requestId(requestId)
-            .approvalComment(request == null ? null : request.getApprovalComment())
-            .build());
+        Long currentUserId = UserContextHolder.getUserId();
+        BillRequestOperationResult result = redisIdempotencyService.executeOnce(
+            "bill-request:reject:" + bookId + ":" + requestId + ":" + currentUserId,
+            Duration.ofMinutes(5),
+            () -> billRequestApplicationService.rejectRequest(RejectBillRequestCommand.builder()
+                .currentUserId(currentUserId)
+                .bookId(bookId)
+                .requestId(requestId)
+                .approvalComment(request == null ? null : request.getApprovalComment())
+                .build())
+        );
         return ApiResponse.success(toOperationResponse(result));
     }
 

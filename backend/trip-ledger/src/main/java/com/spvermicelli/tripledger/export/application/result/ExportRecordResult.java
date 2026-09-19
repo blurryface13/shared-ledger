@@ -11,7 +11,11 @@ public class ExportRecordResult {
     private Long bookId;
     private Long operatorMemberId;
     private String exportType;
+    private String exportStatus;
     private String fileUrl;
     private String exportContentJson;
+    private String errorMessage;
     private LocalDateTime createdAt;
+    private LocalDateTime startedAt;
+    private LocalDateTime finishedAt;
 }

@@ -45,9 +45,13 @@ public class ExportController {
             .bookId(result.getBookId())
             .operatorMemberId(result.getOperatorMemberId())
             .exportType(result.getExportType())
+            .exportStatus(result.getExportStatus())
             .fileUrl(result.getFileUrl())
             .exportContentJson(result.getExportContentJson())
+            .errorMessage(result.getErrorMessage())
             .createdAt(result.getCreatedAt())
+            .startedAt(result.getStartedAt())
+            .finishedAt(result.getFinishedAt())
             .build();
     }
 }

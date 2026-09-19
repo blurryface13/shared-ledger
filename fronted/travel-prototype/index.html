@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="refinements.css">
   <link rel="stylesheet" href="library.css">
   <link rel="stylesheet" href="map.css">
+  <link rel="stylesheet" href="connected.css">
 </head>
 <body>
   <aside class="sidebar">
@@ -47,8 +48,8 @@
   <dialog id="activity-dialog" aria-labelledby="activity-title"><header class="dialog-head"><h2 id="activity-title">加一张行程卡</h2><button data-close="activity-dialog" class="icon-button" aria-label="关闭行程编辑">×</button></header><form id="activity-form"><label>地点 / 活动<input name="title" maxlength="40" required></label><div class="form-grid"><label>开始时间<input name="time" type="time" required></label><label>停留分钟<input name="duration" type="number" min="15" max="600" required value="60"></label></div><label>随手记<input name="note" maxlength="100" placeholder="例如：提前预约，记得带证件"></label><p class="form-note">本地样稿按时间排序并检查活动重叠，交通时间留待真实路线接入校验。</p><button class="primary-button" type="submit">保存安排</button><p id="activity-error" role="alert"></p></form></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>
-  <script src="ledger.js"></script>
-  <script src="library.js"></script>
-  <script src="map.js"></script>
+  <script src="api.js"></script>
+  <script src="amounts.js"></script>
+  <script src="connected.js?v=4"></script>
 </body>
 </html>

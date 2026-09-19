@@ -162,6 +162,9 @@ class BillingSettlementIntegrationTest {
     private ExportRecordMapper exportRecordMapper;
 
     @Autowired
+    private com.spvermicelli.tripledger.export.application.ExportApplicationService exportApplicationService;
+
+    @Autowired
     private OperationLogMapper operationLogMapper;
 
     private final List<Long> userIds = new ArrayList<>();
@@ -179,6 +182,9 @@ class BillingSettlementIntegrationTest {
 
     @BeforeEach
     void ensureExtendedSchema() {
+        if (jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='tb_export_record' AND COLUMN_NAME='export_content_json'", Integer.class) == 0) {
+            jdbcTemplate.execute("ALTER TABLE tb_export_record ADD COLUMN export_content_json LONGTEXT NULL");
+        }
         Integer targetTempColumnCount = jdbcTemplate.queryForObject(
             """
                 SELECT COUNT(1)
@@ -1021,11 +1027,12 @@ class BillingSettlementIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
             .andExpect(jsonPath("$.data.exportType").value("PERSONAL_DETAIL"))
-            .andExpect(jsonPath("$.data.exportContentJson").isString())
+            .andExpect(jsonPath("$.data.exportStatus").value("PENDING"))
             .andReturn()
             .getResponse()
             .getContentAsString();
         exportRecordIds.add(extractLongField(memberExportResponse, "exportRecordId"));
+        awaitExportSnapshot(exportRecordIds.getLast());
 
         mockMvc.perform(post("/api/v1/books/" + fixture.bookId + "/exports/book-summary")
                 .header("Authorization", "Bearer " + memberToken))
@@ -1042,6 +1049,7 @@ class BillingSettlementIntegrationTest {
             .getResponse()
             .getContentAsString();
         exportRecordIds.add(extractLongField(ownerExportResponse, "exportRecordId"));
+        awaitExportSnapshot(exportRecordIds.getLast());
 
         mockMvc.perform(get("/api/v1/books/" + fixture.bookId + "/exports")
                 .header("Authorization", "Bearer " + memberToken))
@@ -1237,6 +1245,41 @@ class BillingSettlementIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(4003))
             .andExpect(jsonPath("$.message").value("当前用户不在该账本中"));
+    }
+
+    @Test
+    void shouldCommitFailedExportStatusAndKeepSuccessfulSnapshotOnRedelivery() throws Exception {
+        SharedBookFixture fixture = createSharedBookFixture("export-failure");
+        ExportRecordPO record = new ExportRecordPO();
+        record.setBookId(fixture.bookId);
+        record.setOperatorMemberId(fixture.ownerMemberId);
+        record.setExportType(com.spvermicelli.tripledger.shared.domain.enums.ExportType.PERSONAL_DETAIL);
+        record.setExportStatus(com.spvermicelli.tripledger.shared.domain.enums.ExportStatus.PENDING);
+        exportRecordMapper.insert(record);
+        exportRecordIds.add(record.getId());
+        bookMemberMapper.update(null,new LambdaUpdateWrapper<BookMemberPO>().eq(BookMemberPO::getId,fixture.ownerMemberId).set(BookMemberPO::getMemberStatus,MemberStatus.QUIT));
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,()->exportApplicationService.processExportTask(record.getId()));
+        org.junit.jupiter.api.Assertions.assertEquals(com.spvermicelli.tripledger.shared.domain.enums.ExportStatus.FAILED,exportRecordMapper.selectById(record.getId()).getExportStatus());
+        bookMemberMapper.update(null,new LambdaUpdateWrapper<BookMemberPO>().eq(BookMemberPO::getId,fixture.ownerMemberId).set(BookMemberPO::getMemberStatus,MemberStatus.ACTIVE));
+        exportApplicationService.processExportTask(record.getId());
+        String snapshot = exportRecordMapper.selectById(record.getId()).getExportContentJson();
+        org.junit.jupiter.api.Assertions.assertNotNull(snapshot);
+        exportApplicationService.processExportTask(record.getId());
+        org.junit.jupiter.api.Assertions.assertEquals(snapshot,exportRecordMapper.selectById(record.getId()).getExportContentJson());
+    }
+
+    private void awaitExportSnapshot(Long id) throws Exception {
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(10).toNanos();
+        while (System.nanoTime() < deadline) {
+            ExportRecordPO row = exportRecordMapper.selectById(id);
+            if (row != null && row.getExportStatus() == com.spvermicelli.tripledger.shared.domain.enums.ExportStatus.SUCCESS) {
+                org.junit.jupiter.api.Assertions.assertNotNull(row.getExportContentJson());
+                org.junit.jupiter.api.Assertions.assertTrue(row.getExportContentJson().contains("billList"));
+                return;
+            }
+            Thread.sleep(100);
+        }
+        org.junit.jupiter.api.Assertions.fail("Async export did not persist its snapshot within 10 seconds");
     }
 
     private SharedBookFixture createSharedBookFixture(String bookNamePrefix) {

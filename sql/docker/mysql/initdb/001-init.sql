@@ -540,12 +540,17 @@ CREATE TABLE `tb_export_record` (
     `book_id` BIGINT NOT NULL COMMENT '所属账本',
     `operator_member_id` BIGINT NOT NULL COMMENT '导出发起人',
     `export_type` VARCHAR(32) NOT NULL COMMENT '导出类型：PERSONAL_DETAIL / BOOK_SUMMARY',
+    `export_status` VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '导出状态：PENDING / RUNNING / SUCCESS / FAILED',
     `file_url` VARCHAR(512) NULL COMMENT '导出文件地址',
+    `error_message` VARCHAR(512) NULL COMMENT '失败原因',
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '导出时间',
+    `started_at` DATETIME(3) NULL COMMENT '任务开始时间',
+    `finished_at` DATETIME(3) NULL COMMENT '任务结束时间',
     PRIMARY KEY (`id`),
     KEY `idx_export_record_book_id` (`book_id`),
     KEY `idx_export_record_operator_member_id` (`operator_member_id`),
     KEY `idx_export_record_export_type` (`export_type`),
+    KEY `idx_export_record_status_created_at` (`export_status`, `created_at`),
     CONSTRAINT `fk_export_record_book_id` FOREIGN KEY (`book_id`) REFERENCES `tb_book` (`id`),
     CONSTRAINT `fk_export_record_operator_member_id` FOREIGN KEY (`operator_member_id`) REFERENCES `tb_book_member` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='导出记录表';
