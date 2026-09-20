@@ -73,6 +73,7 @@ def main(argv=None):
     parser.add_argument('--database', default='db_trip_ledger')
     parser.add_argument('--queue', default='trip-ledger.export.queue')
     parser.add_argument('--vhost', default='/')
+    parser.add_argument('--state-file', help='Optional local incident state; never sends notifications')
     parser.add_argument('--max-age-seconds', type=int, default=300)
     parser.add_argument('--max-backlog', type=int, default=100)
     args = parser.parse_args(argv)
@@ -88,6 +89,18 @@ def main(argv=None):
     except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError) as exc:
         report.update(status='unknown', alerts=[{'code': 'PROBE_FAILED', 'type': type(exc).__name__}])
         code = 2
+    if args.state_file:
+        import export_alert_state
+        source = {key: getattr(args, key) for key in
+                  ('mysql_container', 'rabbit_container', 'database', 'queue', 'vhost')}
+        try:
+            report['events'] = export_alert_state.update(args.state_file, report, source)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            report['probeStatus'] = report['status']
+            report['status'] = 'unknown'
+            report['stateError'] = type(exc).__name__
+            report['events'] = []
+            code = 2
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return code
 

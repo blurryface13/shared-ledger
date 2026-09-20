@@ -1,0 +1,61 @@
+{
+  "date": "2026-09-20",
+  "scriptTests": 13,
+  "firstProbe": {
+    "checkedAt": "2026-09-20T15:23:40.094145+00:00",
+    "thresholds": {
+      "maxAgeSeconds": 300,
+      "maxBacklog": 100
+    },
+    "status": "healthy",
+    "database": {
+      "dead": 0,
+      "pending": 0,
+      "oldest_pending_seconds": 0,
+      "failed": 0,
+      "legacy_pending": 0,
+      "oldest_unfinished_seconds": 0
+    },
+    "queues": {
+      "trip-ledger.export.queue": {
+        "messages": 0,
+        "consumers": 1
+      },
+      "trip-ledger.export.queue.failed": {
+        "messages": 0,
+        "consumers": 0
+      }
+    },
+    "alerts": [],
+    "events": []
+  },
+  "secondProbe": {
+    "checkedAt": "2026-09-20T15:23:43.664466+00:00",
+    "thresholds": {
+      "maxAgeSeconds": 300,
+      "maxBacklog": 100
+    },
+    "status": "healthy",
+    "database": {
+      "dead": 0,
+      "pending": 0,
+      "oldest_pending_seconds": 0,
+      "failed": 0,
+      "legacy_pending": 0,
+      "oldest_unfinished_seconds": 0
+    },
+    "queues": {
+      "trip-ledger.export.queue": {
+        "messages": 0,
+        "consumers": 1
+      },
+      "trip-ledger.export.queue.failed": {
+        "messages": 0,
+        "consumers": 0
+      }
+    },
+    "alerts": [],
+    "events": []
+  },
+  "scope": "two real read-only probes; incident transitions and persistence failures covered by automated tests; no scheduling or notification delivery"
+}
