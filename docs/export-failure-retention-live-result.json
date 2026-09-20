@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-20",
+  "scope": "local restart health and actual broker topology; failure injection performed only in isolated regression",
+  "queues": [
+    {
+      "name": "trip-ledger.export.queue",
+      "durable": true,
+      "arguments": [],
+      "messages": 0
+    },
+    {
+      "name": "trip-ledger.export.queue.failed",
+      "durable": true,
+      "arguments": [],
+      "messages": 0
+    }
+  ]
+}

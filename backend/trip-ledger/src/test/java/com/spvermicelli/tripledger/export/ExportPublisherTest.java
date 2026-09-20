@@ -1,6 +1,7 @@
 package com.spvermicelli.tripledger.export;
 
 import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.amqp.ImmediateRequeueAmqpException;
 import com.spvermicelli.tripledger.export.infrastructure.messaging.ExportTaskPublisher;
 import com.spvermicelli.tripledger.shared.infrastructure.messaging.RabbitMqExportProperties;
 import org.junit.jupiter.api.*;
@@ -38,5 +39,24 @@ class ExportPublisherTest {
     }
     @Test void unroutableMessageDoesNotCountAsSuccessfulPublish() {
         assertThrows(IllegalStateException.class,()->new ExportTaskPublisher(template,properties).publish(42L));
+    }
+    @Test void failureRetentionRequiresRoutingConfirmation() {
+        var recoverer = new com.spvermicelli.tripledger.export.infrastructure.messaging.ExportFailureRecoverer(template, properties);
+        var message = MessageBuilder.withBody("{\"exportRecordId\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            .setMessageId("export:42").build();
+        admin.declareExchange(new DirectExchange(name + ".failed", false, true));
+        try {
+            assertThrows(ImmediateRequeueAmqpException.class, () -> recoverer.recover(message, new RuntimeException("private detail")));
+            admin.declareQueue(new Queue(name, false, false, true));
+            admin.declareBinding(new Binding(name, Binding.DestinationType.QUEUE, name + ".failed", "failed", null));
+            recoverer.recover(message, new RuntimeException("private detail"));
+            var retained = template.receive(name, 2000);
+            assertNotNull(retained);
+            assertArrayEquals(message.getBody(), retained.getBody());
+            assertEquals("export:42", retained.getMessageProperties().getMessageId());
+            assertEquals(MessageDeliveryMode.PERSISTENT, retained.getMessageProperties().getReceivedDeliveryMode());
+            assertEquals("RuntimeException", retained.getMessageProperties().getHeader("failure-type"));
+            assertFalse(retained.getMessageProperties().getHeaders().toString().contains("private detail"));
+        } finally { admin.deleteExchange(name + ".failed"); }
     }
 }

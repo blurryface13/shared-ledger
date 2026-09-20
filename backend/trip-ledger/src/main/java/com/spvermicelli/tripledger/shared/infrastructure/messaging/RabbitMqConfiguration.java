@@ -34,4 +34,12 @@ public class RabbitMqConfiguration {
             .to(exportExchange)
             .with(properties.getExportRoutingKey());
     }
+    @Bean
+    public org.springframework.amqp.core.Declarables exportFailureTopology(RabbitMqExportProperties properties) {
+        String exchange = properties.getExportExchange() + ".failed";
+        String queue = properties.getExportQueue() + ".failed";
+        return new org.springframework.amqp.core.Declarables(
+            new DirectExchange(exchange, true, false), new Queue(queue, true),
+            new Binding(queue, Binding.DestinationType.QUEUE, exchange, "failed", null));
+    }
 }

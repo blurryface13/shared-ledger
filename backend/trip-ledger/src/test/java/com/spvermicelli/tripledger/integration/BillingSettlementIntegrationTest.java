@@ -1273,6 +1273,22 @@ class BillingSettlementIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(snapshot,exportRecordMapper.selectById(record.getId()).getExportContentJson());
     }
 
+    @Autowired
+    private org.springframework.amqp.rabbit.core.RabbitTemplate recoveryRabbitTemplate;
+    @Autowired
+    private com.spvermicelli.tripledger.shared.infrastructure.messaging.RabbitMqExportProperties recoveryRabbitProperties;
+
+    @Test
+    void shouldRetainExhaustedConsumerMessageInFailureQueue() {
+        // Missing ID reliably fails the real consumer; no user task is corrupted.
+        exportTaskPublisher.publish(-999999L);
+        var retained = recoveryRabbitTemplate.receive(recoveryRabbitProperties.getExportQueue() + ".failed", 12000);
+        org.junit.jupiter.api.Assertions.assertNotNull(retained);
+        org.junit.jupiter.api.Assertions.assertEquals("export:-999999", retained.getMessageProperties().getMessageId());
+        org.junit.jupiter.api.Assertions.assertTrue(new String(retained.getBody(), java.nio.charset.StandardCharsets.UTF_8).contains("-999999"));
+        org.junit.jupiter.api.Assertions.assertNotNull(retained.getMessageProperties().getHeader("failure-type"));
+    }
+
     @Test
     void shouldExposeDeliveryStateOnlyToInitiatorAndUpdateRetryEligibility() throws Exception {
         var fixture = createSharedBookFixture("delivery-status");
