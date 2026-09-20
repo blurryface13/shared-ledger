@@ -1,0 +1,14 @@
+{
+  "bookId": 74,
+  "billId": 43,
+  "via": "localhost:4178 proxy",
+  "checks": [
+    "invalid split rejected",
+    "failed submission wrote no bill",
+    "same key corrected after rollback",
+    "same key replay",
+    "changed payload conflict",
+    "one visible bill"
+  ],
+  "scope": "single-member shared book, not multi-member settlement"
+}

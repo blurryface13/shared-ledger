@@ -20,7 +20,23 @@ window.ledgerApi = (() => {
     if (!response.ok || result.code !== 0) { const error=new Error(result.message || `请求失败 (${response.status})`);error.code=result.code;throw error; }
     return result.data;
   }
-  return { request, setSession, get session(){return session;}, get:path=>request(path), post:(path,body={})=>request(path,{method:'POST',body}), put:(path,body)=>request(path,{method:'PUT',body}), delete:path=>request(path,{method:'DELETE'}),
+  // Only an explicit parameter rejection permits changing this submission.
+  // Conflicts, authentication failures and transport failures may follow a committed request.
+  async function submitBill(holder, pending = holder.pendingBill) {
+    holder.pendingBill = pending;
+    try {
+      const result = await request(pending.path, {method:'POST', body:pending.body, idempotencyKey:pending.key});
+      holder.pendingBill = null;
+      return result;
+    } catch (error) {
+      if (error.code === 4001) {
+        holder.pendingBill = null;
+        throw new Error('账单未被接受，请修改后重新提交。' + error.message);
+      }
+      throw new Error('提交结果未确认，请保留原内容重试或先核对账本。' + error.message);
+    }
+  }
+  return { request, submitBill, setSession, get session(){return session;}, get:path=>request(path), post:(path,body={})=>request(path,{method:'POST',body}), put:(path,body)=>request(path,{method:'PUT',body}), delete:path=>request(path,{method:'DELETE'}),
     async image(url){ const parsed = new URL(url,location.origin); if(!parsed.pathname.startsWith('/api/v1/files/billing/')) throw new Error('凭据地址无效'); return URL.createObjectURL(await request(parsed.pathname,{blob:true})); }
   };
 })();

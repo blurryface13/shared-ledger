@@ -131,8 +131,7 @@
       const formSignature=JSON.stringify([...f.entries()].map(([key,val])=>[key,typeof val==='string'?val:[val.name,val.size,val.lastModified]]));
       if(formEl.pendingBill){
         if(formEl.pendingBill.signature!==formSignature)throw new Error('上次提交结果尚未确认，请恢复原内容重试，或关闭后先核对账本。');
-        await api.request(formEl.pendingBill.path,{method:'POST',body:formEl.pendingBill.body,idempotencyKey:formEl.pendingBill.key});
-        formEl.pendingBill=null;
+        await api.submitBill(formEl);
         closeDialogs();return refresh();
       }
       const data={billType:value.billType,title:value.title.trim(),billAmountCent:cents(value.amount),billTime:value.billTime.length===16?value.billTime+':00':value.billTime,categoryId:Number(value.categoryId),payerMemberId:Number(value.payerMemberId),recorderMemberId:Number(value.recorderMemberId),tempParticipantId:value.tempParticipantId?Number(value.tempParticipantId):null,remark:value.remark,requestReason:value.requestReason};
@@ -140,9 +139,7 @@
       for(const file of f.getAll('receipt').filter(x=>x.size)) uploads.push(await upload(file,'billing',editor?.billId));data.attachmentUrls=uploads;
       if(editor){if(editor.directEditable)await api.put(bp()+'/bills/'+editor.billId,data);else await api.post(bp()+`/bills/${editor.billId}/modify-requests`,data);}else {
         const pending={path:bp()+'/bills/'+(data.billType==='SHARED_EXPENSE'?'shared-expense':'personal-bill'),body:JSON.parse(JSON.stringify(data)),key:crypto.randomUUID(),signature:formSignature};
-        formEl.pendingBill=pending;
-        try { await api.request(pending.path,{method:'POST',body:pending.body,idempotencyKey:pending.key});formEl.pendingBill=null; }
-        catch(error){throw new Error('提交未确认。再次提交将重试原账单；修改内容前请先核对账本。'+error.message);}
+        await api.submitBill(formEl,pending);
       }
     }else if(kind==='delete-request'){await api.post(bp()+`/bills/${editor.billId}/delete-requests`,value);
     }else if(kind==='search-member'){const list=await api.get(bp()+`/invitation-candidates?searchType=${value.searchType}&keyword=${encodeURIComponent(value.keyword)}`);preserveView=true;$('#candidate-results').innerHTML=list.map(m=>row(m.nickname,m.phoneNumber||'',button(m.pendingInvitation?'已邀请':'邀请','invite',m.userId,m.pendingInvitation?'disabled':''))).join('')||empty('没有符合条件的用户。');return;

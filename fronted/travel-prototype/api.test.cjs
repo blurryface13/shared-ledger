@@ -23,3 +23,30 @@ test('token refresh preserves request key and body',async()=>{
  assert.equal(calls[0].options.body,calls[2].options.body);
  assert.equal(calls[2].options.headers.Authorization,'Bearer new');
 });
+
+const pending=()=>({path:'/api/v1/books/1/bills/personal-bill',body:{amount:123},key:'stable-request-123'});
+test('parameter rejection releases pending submission for editing',async()=>{
+ const api=setup(async()=>response(null,4001));const holder={};
+ await assert.rejects(api.submitBill(holder,pending()),/修改后重新提交/);
+ assert.equal(holder.pendingBill,null);
+});
+test('network failure retains original submission and retry clears only on success',async()=>{
+ const calls=[];const api=setup(async(path,options)=>{
+  calls.push(options);if(calls.length===1)throw new TypeError('network lost');return response({billId:42});
+ });const holder={};const draft=pending();
+ await assert.rejects(api.submitBill(holder,draft),/结果未确认/);
+ assert.equal(holder.pendingBill,draft);
+ await api.submitBill(holder);
+ assert.equal(holder.pendingBill,null);
+ assert.equal(calls[0].body,calls[1].body);
+ assert.equal(calls[0].headers['Idempotency-Key'],calls[1].headers['Idempotency-Key']);
+});
+for(const code of [4002,4003,4007,5000])test(`error ${code} does not discard uncertain operation`,async()=>{
+ const api=setup(async()=>response(null,code));const holder={};const draft=pending();
+ await assert.rejects(api.submitBill(holder,draft));assert.equal(holder.pendingBill,draft);
+});
+test('parameter rejection during retry also unlocks form',async()=>{
+ let count=0;const api=setup(async()=>{if(!count++)throw new TypeError('lost');return response(null,4001);});
+ const holder={};await assert.rejects(api.submitBill(holder,pending()));
+ await assert.rejects(api.submitBill(holder),/修改后重新提交/);assert.equal(holder.pendingBill,null);
+});
