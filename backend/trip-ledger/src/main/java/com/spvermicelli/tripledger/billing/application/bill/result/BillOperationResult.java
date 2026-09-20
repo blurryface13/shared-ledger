@@ -5,6 +5,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
+@lombok.extern.jackson.Jacksonized
 public class BillOperationResult {
 
     private Long billId;

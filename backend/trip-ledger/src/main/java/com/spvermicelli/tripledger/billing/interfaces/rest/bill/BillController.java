@@ -20,6 +20,10 @@ import com.spvermicelli.tripledger.shared.common.response.ApiResponse;
 import com.spvermicelli.tripledger.shared.common.response.PageResponse;
 import com.spvermicelli.tripledger.shared.infrastructure.redis.RedisDistributedLockService;
 import com.spvermicelli.tripledger.shared.infrastructure.redis.RedisIdempotencyService;
+import com.spvermicelli.tripledger.shared.infrastructure.persistence.DurableIdempotencyService;
+import com.spvermicelli.tripledger.billing.application.support.BillingAccessSupportService;
+import org.springframework.web.bind.annotation.RequestHeader;
+import java.util.function.Supplier;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import java.util.List;
@@ -41,6 +45,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/books/{bookId}/bills")
 public class BillController {
 
+    private final DurableIdempotencyService durableIdempotency;
+    private final BillingAccessSupportService access;
     private final BillApplicationService billApplicationService;
     private final RedisDistributedLockService redisDistributedLockService;
     private final RedisIdempotencyService redisIdempotencyService;
@@ -48,8 +54,12 @@ public class BillController {
     public BillController(
         BillApplicationService billApplicationService,
         RedisDistributedLockService redisDistributedLockService,
-        RedisIdempotencyService redisIdempotencyService
+        RedisIdempotencyService redisIdempotencyService,
+        DurableIdempotencyService durableIdempotency,
+        BillingAccessSupportService access
     ) {
+        this.durableIdempotency = durableIdempotency;
+        this.access = access;
         this.billApplicationService = billApplicationService;
         this.redisDistributedLockService = redisDistributedLockService;
         this.redisIdempotencyService = redisIdempotencyService;
@@ -85,14 +95,11 @@ public class BillController {
     @PostMapping("/personal-bill")
     public ApiResponse<BillOperationResponse> createPersonalBill(
         @PathVariable Long bookId,
-        @Valid @RequestBody CreatePersonalBillRequest request
+        @Valid @RequestBody CreatePersonalBillRequest request,
+        @RequestHeader(value = "Idempotency-Key", required = false) String requestKey
     ) {
         Long currentUserId = UserContextHolder.getUserId();
-        BillOperationResult result = redisIdempotencyService.executeOnce(
-            "bill:create-personal:" + currentUserId + ":" + bookId + ":" + request.getTitle() + ":" + request.getBillAmountCent() + ":" + request.getBillTime(),
-            Duration.ofSeconds(30),
-            () -> redisDistributedLockService.executeWithBookLock(bookId, () ->
-                billApplicationService.createPersonalBill(CreatePersonalBillCommand.builder()
+        Supplier<BillOperationResult> action = () -> billApplicationService.createPersonalBill(CreatePersonalBillCommand.builder()
                     .currentUserId(currentUserId)
                     .bookId(bookId)
                     .billType(request.getBillType())
@@ -105,23 +112,27 @@ public class BillController {
                     .billTime(request.getBillTime())
                     .remark(request.getRemark())
                     .attachmentUrls(request.getAttachmentUrls())
-                    .build())
-            )
-        );
+                    .build());
+        BillOperationResult result = redisDistributedLockService.executeWithBookLock(bookId, () -> {
+            if (requestKey != null) {
+                return durableIdempotency.execute(currentUserId, bookId, "bill:create-personal", requestKey,
+                    request, BillOperationResult.class,
+                    () -> access.requireActiveContext(currentUserId, bookId), action);
+            }
+            return redisIdempotencyService.executeOnce(
+                "bill:create-personal:" + currentUserId + ":" + bookId + ":" + request.getTitle() + ":" + request.getBillAmountCent() + ":" + request.getBillTime(), Duration.ofSeconds(30), action);
+        });
         return ApiResponse.success(toBillOperationResponse(result));
     }
 
     @PostMapping("/shared-expense")
     public ApiResponse<BillOperationResponse> createSharedExpenseBill(
         @PathVariable Long bookId,
-        @Valid @RequestBody CreateSharedExpenseBillRequest request
+        @Valid @RequestBody CreateSharedExpenseBillRequest request,
+        @RequestHeader(value = "Idempotency-Key", required = false) String requestKey
     ) {
         Long currentUserId = UserContextHolder.getUserId();
-        BillOperationResult result = redisIdempotencyService.executeOnce(
-            "bill:create-shared:" + currentUserId + ":" + bookId + ":" + request.getTitle() + ":" + request.getBillAmountCent() + ":" + request.getBillTime(),
-            Duration.ofSeconds(30),
-            () -> redisDistributedLockService.executeWithBookLock(bookId, () ->
-                billApplicationService.createSharedExpenseBill(CreateSharedExpenseBillCommand.builder()
+        Supplier<BillOperationResult> action = () -> billApplicationService.createSharedExpenseBill(CreateSharedExpenseBillCommand.builder()
                     .currentUserId(currentUserId)
                     .bookId(bookId)
                     .title(request.getTitle())
@@ -133,9 +144,16 @@ public class BillController {
                     .remark(request.getRemark())
                     .attachmentUrls(request.getAttachmentUrls())
                     .shareItems(toShareItemCommands(request.getShareItems()))
-                    .build())
-            )
-        );
+                    .build());
+        BillOperationResult result = redisDistributedLockService.executeWithBookLock(bookId, () -> {
+            if (requestKey != null) {
+                return durableIdempotency.execute(currentUserId, bookId, "bill:create-shared", requestKey,
+                    request, BillOperationResult.class,
+                    () -> access.requireActiveContext(currentUserId, bookId), action);
+            }
+            return redisIdempotencyService.executeOnce(
+                "bill:create-shared:" + currentUserId + ":" + bookId + ":" + request.getTitle() + ":" + request.getBillAmountCent() + ":" + request.getBillTime(), Duration.ofSeconds(30), action);
+        });
         return ApiResponse.success(toBillOperationResponse(result));
     }
 

@@ -7,7 +7,7 @@ if [[ "$mode" == frontend || "$mode" == all ]]; then
   for source_file in app.js api.js amounts.js schedule.js connected.js; do
     node --check "$project_root/fronted/travel-prototype/$source_file"
   done
-  node --test "$project_root/fronted/travel-prototype/amounts.test.cjs" "$project_root/fronted/travel-prototype/schedule.test.cjs"
+  node --test "$project_root/fronted/travel-prototype/amounts.test.cjs" "$project_root/fronted/travel-prototype/schedule.test.cjs" "$project_root/fronted/travel-prototype/api.test.cjs"
 fi
 if [[ "$mode" == backend || "$mode" == all ]]; then
   : "${TRIP_LEDGER_TEST_DB_URL:?Set an isolated test database URL}"
@@ -16,6 +16,7 @@ if [[ "$mode" == backend || "$mode" == all ]]; then
   if [[ "${TRIP_LEDGER_TEST_ENV_CONFIRMED:-}" != 1 ]]; then
     echo 'Confirm isolated, writable test dependencies with TRIP_LEDGER_TEST_ENV_CONFIRMED=1' >&2; exit 2
   fi
+  : "${TRIP_LEDGER_IDEMPOTENCY_TEST_DB_URL:?Set the dedicated trip_ledger_idempotency_test database URL}"
   cd "$project_root/backend/trip-ledger"
   mvn -B test
 fi

@@ -39,3 +39,7 @@
 新增 `RedisIdempotencyServiceTest` 的 5 项测试，使用真实 Redis 验证键的持有者和并发行为，清理失败通过故障注入验证。使用 `SPRING_DATA_REDIS_HOST/PORT/USERNAME/PASSWORD/DATABASE` 配置独立测试 Redis；默认 localhost:6379、数据库 0，每个测试使用 UUID 命名空间，仅删除自身键。Redis 不可用时测试应失败，不自动跳过。
 
 后端目录执行 `mvn -B -Dtest=RedisIdempotencyServiceTest,TravelDomainTest test` 可运行本次定向回归（Java 21）。本次 11 项通过，不代表全量数据库、MQ 或 UI 回归已经执行。该类也会被统一入口的 Maven 全量测试自动发现。
+
+## 持久化幂等测试数据库
+
+全量入口新增要求 `TRIP_LEDGER_IDEMPOTENCY_TEST_DB_URL=jdbc:mysql://127.0.0.1:3306/trip_ledger_idempotency_test?allowPublicKeyRetrieval=true&useSSL=false`，提前创建专用数据库。连接用户名和密码仍来自 `TRIP_LEDGER_TEST_DB_USERNAME/PASSWORD`。此数据库仅供 DurableIdempotencyServiceTest 使用，与现有业务集成测试库分开。定向运行 `mvn -B -Dtest=DurableIdempotencyServiceTest,RedisIdempotencyServiceTest,TravelDomainTest test`。详见 durable-idempotency.md。

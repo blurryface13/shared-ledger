@@ -128,10 +128,22 @@
     if(kind==='create-book'){const result=await api.post('/api/v1/books',value);create=false;section='bills';await loadLists();history.replaceState(null,'',`#ledger/${result.bookId}`);return loadBook(result.bookId);}
     if(kind==='create-trip'){const result=await api.post('/api/v1/trips',{...value,people:Number(value.people),budgetCent:cents(value.budget),pace:'balanced',style:'classic',stay:'metro',activities:[]});create=false;await loadLists();history.replaceState(null,'',`#itinerary/${result.id}`);return loadTrip(result.id);}
     if(kind==='bill'){
+      const formSignature=JSON.stringify([...f.entries()].map(([key,val])=>[key,typeof val==='string'?val:[val.name,val.size,val.lastModified]]));
+      if(formEl.pendingBill){
+        if(formEl.pendingBill.signature!==formSignature)throw new Error('上次提交结果尚未确认，请恢复原内容重试，或关闭后先核对账本。');
+        await api.request(formEl.pendingBill.path,{method:'POST',body:formEl.pendingBill.body,idempotencyKey:formEl.pendingBill.key});
+        formEl.pendingBill=null;
+        closeDialogs();return refresh();
+      }
       const data={billType:value.billType,title:value.title.trim(),billAmountCent:cents(value.amount),billTime:value.billTime.length===16?value.billTime+':00':value.billTime,categoryId:Number(value.categoryId),payerMemberId:Number(value.payerMemberId),recorderMemberId:Number(value.recorderMemberId),tempParticipantId:value.tempParticipantId?Number(value.tempParticipantId):null,remark:value.remark,requestReason:value.requestReason};
       if(data.billType==='SHARED_EXPENSE'){const selected=f.getAll('participant');if(!selected.length)throw new Error('请选择分摊成员');const amounts=window.ledgerAmounts.allocate(data.billAmountCent,value.shareMethod,selected.map(key=>value['share-'+key]));data.shareItems=selected.map((key,i)=>{const [participantType,id]=key.split(':');return {participantType,participantRefId:Number(id),shareMethod:value.shareMethod,shareAmountCent:amounts[i],shareRatio:value.shareMethod==='RATIO'?Number(value['share-'+key]):null};});if(value.shareMethod==='FIXED_AMOUNT'&&data.shareItems.reduce((s,x)=>s+x.shareAmountCent,0)!==data.billAmountCent)throw new Error('指定分摊金额之和必须等于账单总金额');}
       for(const file of f.getAll('receipt').filter(x=>x.size)) uploads.push(await upload(file,'billing',editor?.billId));data.attachmentUrls=uploads;
-      if(editor){if(editor.directEditable)await api.put(bp()+'/bills/'+editor.billId,data);else await api.post(bp()+`/bills/${editor.billId}/modify-requests`,data);}else await api.post(bp()+'/bills/'+(data.billType==='SHARED_EXPENSE'?'shared-expense':'personal-bill'),data);
+      if(editor){if(editor.directEditable)await api.put(bp()+'/bills/'+editor.billId,data);else await api.post(bp()+`/bills/${editor.billId}/modify-requests`,data);}else {
+        const pending={path:bp()+'/bills/'+(data.billType==='SHARED_EXPENSE'?'shared-expense':'personal-bill'),body:JSON.parse(JSON.stringify(data)),key:crypto.randomUUID(),signature:formSignature};
+        formEl.pendingBill=pending;
+        try { await api.request(pending.path,{method:'POST',body:pending.body,idempotencyKey:pending.key});formEl.pendingBill=null; }
+        catch(error){throw new Error('提交未确认。再次提交将重试原账单；修改内容前请先核对账本。'+error.message);}
+      }
     }else if(kind==='delete-request'){await api.post(bp()+`/bills/${editor.billId}/delete-requests`,value);
     }else if(kind==='search-member'){const list=await api.get(bp()+`/invitation-candidates?searchType=${value.searchType}&keyword=${encodeURIComponent(value.keyword)}`);preserveView=true;$('#candidate-results').innerHTML=list.map(m=>row(m.nickname,m.phoneNumber||'',button(m.pendingInvitation?'已邀请':'邀请','invite',m.userId,m.pendingInvitation?'disabled':''))).join('')||empty('没有符合条件的用户。');return;
     }else if(kind==='temp'){const attachedMemberId=value.attachedMemberId?Number(value.attachedMemberId):null;if(editor){await api.put(bp()+`/temp-participants/${editor.tempParticipantId}/nickname`,{nickname:value.nickname});await api.put(bp()+`/temp-participants/${editor.tempParticipantId}/attached-member`,{attachedMemberId});}else await api.post(bp()+'/temp-participants',{nickname:value.nickname,tempType:value.tempType,attachedMemberId});
