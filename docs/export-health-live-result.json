@@ -1,0 +1,46 @@
+{
+  "healthyProbe": {
+    "checkedAt": "2026-09-20T15:18:17.313367+00:00",
+    "thresholds": {
+      "maxAgeSeconds": 300,
+      "maxBacklog": 100
+    },
+    "status": "healthy",
+    "database": {
+      "dead": 0,
+      "pending": 0,
+      "oldest_pending_seconds": 0,
+      "failed": 0,
+      "legacy_pending": 0,
+      "oldest_unfinished_seconds": 0
+    },
+    "queues": {
+      "trip-ledger.export.queue": {
+        "messages": 0,
+        "consumers": 1
+      },
+      "trip-ledger.export.queue.failed": {
+        "messages": 0,
+        "consumers": 0
+      }
+    },
+    "alerts": []
+  },
+  "unavailableDependencyProbe": {
+    "checkedAt": "2026-09-20T15:19:46.869024+00:00",
+    "thresholds": {
+      "maxAgeSeconds": 300,
+      "maxBacklog": 100
+    },
+    "status": "unknown",
+    "alerts": [
+      {
+        "code": "PROBE_FAILED",
+        "type": "CalledProcessError"
+      }
+    ]
+  },
+  "unavailableDependencyExitCode": 2,
+  "unitTests": 6,
+  "scope": "read-only local snapshot and deliberately nonexistent container; no scheduler or notifications"
+}

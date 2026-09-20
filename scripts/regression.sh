@@ -2,6 +2,7 @@
 set -euo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:-frontend}"
+python3 -m unittest discover -s "$project_root/scripts" -p "*_test.py"
 case "$mode" in frontend|backend|all) ;; *) echo 'Usage: bash scripts/regression.sh [frontend|backend|all]' >&2; exit 2;; esac
 if [[ "$mode" == frontend || "$mode" == all ]]; then
   for source_file in app.js api.js amounts.js schedule.js connected.js; do
