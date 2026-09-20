@@ -12,7 +12,7 @@ import com.spvermicelli.tripledger.billing.application.statistics.StatisticsAppl
 import com.spvermicelli.tripledger.export.application.result.ExportRecordResult;
 import com.spvermicelli.tripledger.export.domain.model.ExportRecord;
 import com.spvermicelli.tripledger.export.domain.repository.ExportRecordRepository;
-import com.spvermicelli.tripledger.export.infrastructure.messaging.ExportTaskPublisher;
+import com.spvermicelli.tripledger.export.infrastructure.messaging.ExportOutbox;
 import com.spvermicelli.tripledger.ledger.domain.book.model.Book;
 import com.spvermicelli.tripledger.ledger.domain.book.model.BookMember;
 import com.spvermicelli.tripledger.ledger.domain.book.repository.BookMemberRepository;
@@ -36,8 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 导出应用服务。
@@ -55,7 +53,7 @@ public class ExportApplicationService {
     private final StatisticsApplicationService statisticsApplicationService;
     private final BookCategoryRepository bookCategoryRepository;
     private final ObjectMapper objectMapper;
-    private final ExportTaskPublisher exportTaskPublisher;
+    private final ExportOutbox exportOutbox;
 
     public ExportApplicationService(
         BookRepository bookRepository,
@@ -65,7 +63,7 @@ public class ExportApplicationService {
         StatisticsApplicationService statisticsApplicationService,
         BookCategoryRepository bookCategoryRepository,
         ObjectMapper objectMapper,
-        ExportTaskPublisher exportTaskPublisher
+        ExportOutbox exportOutbox
     ) {
         this.bookRepository = bookRepository;
         this.bookMemberRepository = bookMemberRepository;
@@ -74,7 +72,7 @@ public class ExportApplicationService {
         this.statisticsApplicationService = statisticsApplicationService;
         this.bookCategoryRepository = bookCategoryRepository;
         this.objectMapper = objectMapper;
-        this.exportTaskPublisher = exportTaskPublisher;
+        this.exportOutbox = exportOutbox;
     }
 
     @Transactional
@@ -249,7 +247,7 @@ public class ExportApplicationService {
             .startedAt(null)
             .finishedAt(null)
             .build());
-        publishExportTaskAfterCommit(savedRecord.getId());
+        exportOutbox.enqueue(savedRecord.getId());
         return ExportRecordResult.builder()
             .exportRecordId(savedRecord.getId())
             .bookId(savedRecord.getBookId())
@@ -263,15 +261,6 @@ public class ExportApplicationService {
             .startedAt(savedRecord.getStartedAt())
             .finishedAt(savedRecord.getFinishedAt())
             .build();
-    }
-
-    private void publishExportTaskAfterCommit(Long exportRecordId) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                exportTaskPublisher.publish(exportRecordId);
-            }
-        });
     }
 
     private BookMember requireActiveMember(Long bookId, Long currentUserId) {

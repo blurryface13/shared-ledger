@@ -182,6 +182,10 @@ class BillingSettlementIntegrationTest {
 
     @BeforeEach
     void ensureExtendedSchema() {
+        try {
+            jdbcTemplate.execute(new org.springframework.core.io.ClassPathResource("export-outbox-schema.sql")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.io.IOException e) { throw new IllegalStateException(e); }
         if (jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='tb_export_record' AND COLUMN_NAME='export_content_json'", Integer.class) == 0) {
             jdbcTemplate.execute("ALTER TABLE tb_export_record ADD COLUMN export_content_json LONGTEXT NULL");
         }
@@ -224,6 +228,7 @@ class BillingSettlementIntegrationTest {
     @AfterEach
     void tearDown() {
         if (!exportRecordIds.isEmpty()) {
+            for (Long id : exportRecordIds) jdbcTemplate.update("DELETE FROM export_outbox WHERE export_record_id=?", id);
             exportRecordMapper.deleteByIds(exportRecordIds);
         }
         if (!bookIds.isEmpty()) {
