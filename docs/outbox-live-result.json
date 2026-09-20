@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-20",
+  "entrypoint": "http://127.0.0.1:4178",
+  "bookId": 73,
+  "exportRecordId": 12,
+  "initialStatus": "PENDING",
+  "finalStatus": "SUCCESS",
+  "outboxStatus": "SENT",
+  "publishAttempts": 1,
+  "sourceBillCount": 4,
+  "snapshotBillCount": 4,
+  "sourceUnchanged": true,
+  "observationSeconds": 0.555,
+  "scope": "local API via frontend proxy; persisted JSON snapshot, not browser download or production capacity"
+}

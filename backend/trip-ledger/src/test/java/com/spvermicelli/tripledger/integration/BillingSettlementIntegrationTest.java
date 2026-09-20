@@ -1273,7 +1273,18 @@ class BillingSettlementIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(snapshot,exportRecordMapper.selectById(record.getId()).getExportContentJson());
     }
 
+    @Autowired
+    private com.spvermicelli.tripledger.export.infrastructure.messaging.ExportTaskPublisher exportTaskPublisher;
+
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
     private void awaitExportSnapshot(Long id) throws Exception {
+        // The test profile disables scheduling. Drive the real relay, then let RabbitMQ
+        // deliver to the real consumer; do not bypass the publication boundary.
+        var relay = new com.spvermicelli.tripledger.export.infrastructure.messaging.ExportOutboxRelay(
+            jdbcTemplate, exportTaskPublisher, transactionManager);
+        relay.relayOne();
         long deadline = System.nanoTime() + java.time.Duration.ofSeconds(10).toNanos();
         while (System.nanoTime() < deadline) {
             ExportRecordPO row = exportRecordMapper.selectById(id);

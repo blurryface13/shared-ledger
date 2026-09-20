@@ -21,5 +21,14 @@ if [[ "$mode" == backend || "$mode" == all ]]; then
   fi
   : "${TRIP_LEDGER_IDEMPOTENCY_TEST_DB_URL:?Set the dedicated trip_ledger_idempotency_test database URL}"
   cd "$project_root/backend/trip-ledger"
-  mvn -B test
+  # A separate database is insufficient: the running app must not consume test messages.
+  test_namespace="trip-ledger.regression.$(date +%s).$$"
+  mvn -B \
+    "-Dapp.rabbitmq.export-exchange=$test_namespace.exchange" \
+    "-Dapp.rabbitmq.export-routing-key=$test_namespace.created" \
+    "-Dapp.rabbitmq.export-queue=$test_namespace.queue" \
+    "-Dapp.redis.lock-prefix=$test_namespace:lock:" \
+    "-Dapp.redis.idempotency-prefix=$test_namespace:idempotency:" \
+    test
+  echo "Test messaging namespace: $test_namespace (remove its empty queue/exchange after verification)"
 fi
