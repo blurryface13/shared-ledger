@@ -11,7 +11,7 @@ class Handler(SimpleHTTPRequestHandler):
         size = int(self.headers.get('Content-Length', '0'))
         if size > 11 * 1024 * 1024:
             self.send_error(413); return
-        headers = {k: v for k, v in self.headers.items() if k.lower() in ('authorization', 'content-type', 'accept')}
+        headers = {k: v for k, v in self.headers.items() if k.lower() in ('authorization', 'content-type', 'accept', 'idempotency-key')}
         connection = http.client.HTTPConnection('127.0.0.1', int(os.getenv('TRIP_LEDGER_API_PORT', '8081')), timeout=30)
         try:
             connection.request(self.command, self.path, self.rfile.read(size) if size else None, headers)

@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-20",
+  "bookId": 73,
+  "billId": 39,
+  "checks": [
+    "health",
+    "create",
+    "same-key replay",
+    "changed-payload conflict",
+    "visible bill count = 1"
+  ],
+  "backendPort": 8081,
+  "browserVerified": true,
+  "browserBillAmountCent": 456,
+  "finalVisibleBillCount": 4,
+  "persistedOperationCount": 2,
+  "discoveredIssue": "Local proxy stripped Idempotency-Key; fixed and verified"
+}

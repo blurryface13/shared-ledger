@@ -9,6 +9,9 @@ if [[ "$mode" == frontend || "$mode" == all ]]; then
   done
   node --test "$project_root/fronted/travel-prototype/amounts.test.cjs" "$project_root/fronted/travel-prototype/schedule.test.cjs" "$project_root/fronted/travel-prototype/api.test.cjs"
 fi
+if [[ "$mode" == frontend || "$mode" == all ]]; then
+  python3 -m unittest discover -s "$project_root/fronted/travel-prototype" -p "*_test.py"
+fi
 if [[ "$mode" == backend || "$mode" == all ]]; then
   : "${TRIP_LEDGER_TEST_DB_URL:?Set an isolated test database URL}"
   : "${TRIP_LEDGER_TEST_DB_USERNAME:?Set the test database username}"
