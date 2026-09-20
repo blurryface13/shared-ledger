@@ -38,7 +38,83 @@ class TravelIntegrationTest {
         if(token!=null)request.header("Authorization","Bearer "+token);
         return json.readTree(mvc.perform(request.contentType(MediaType.APPLICATION_JSON)).andReturn().getResponse().getContentAsString());
     }
-    @AfterEach void cleanup(){for(Long id:tripIds){jdbc.update("DELETE FROM tb_trip_plan WHERE trip_id=?",id);jdbc.update("DELETE FROM tb_trip WHERE id=?",id);}for(Long id:users){jdbc.update("DELETE FROM tb_user_refresh_token WHERE user_id=?",id);jdbc.update("DELETE FROM tb_user WHERE id=?",id);}}
+    @AfterEach void cleanup(){for(Long id:tripIds){jdbc.update("DELETE FROM tb_trip_invite WHERE trip_id=?",id);jdbc.update("DELETE FROM tb_trip_change WHERE trip_id=?",id);jdbc.update("DELETE FROM tb_trip_member WHERE trip_id=?",id);jdbc.update("DELETE FROM tb_trip_plan WHERE trip_id=?",id);jdbc.update("DELETE FROM tb_trip WHERE id=?",id);}for(Long id:users){jdbc.update("DELETE FROM tb_user_refresh_token WHERE user_id=?",id);jdbc.update("DELETE FROM tb_user WHERE id=?",id);}}
+    @Autowired com.spvermicelli.tripledger.travel.application.TripApplicationService trips;
+    @Test void sharedRolesRevocationAuditAndConcurrentVersionConflict() throws Exception {
+        String owner=login(), member=login();long ownerId=users.get(0),memberId=users.get(1);
+        String payload="""
+            {"name":"共享杭州","destination":"杭州","startDate":"2026-09-26","endDate":"2026-09-27","people":2,"budgetCent":400000,"pace":"balanced","style":"culture","stay":"metro","activities":[]}
+            """;
+        var created=call(post("/api/v1/trips").content(payload),owner);assertEquals(0,created.path("code").asInt());
+        long id=created.path("data").path("id").asLong();tripIds.add(id);
+        String path="/api/v1/trips/"+id;
+        assertEquals(0,call(put(path+"/members/"+memberId).content("{\"role\":\"VIEWER\"}"),owner).path("code").asInt());
+        assertEquals(0,call(get(path),member).path("code").asInt());
+        assertEquals(4003,call(put(path).content(created.path("data").toString()),member).path("code").asInt());
+        assertEquals(4003,call(put(path+"/members/"+ownerId).content("{\"role\":\"EDITOR\"}"),member).path("code").asInt());
+        assertEquals(0,call(put(path+"/members/"+memberId).content("{\"role\":\"EDITOR\"}"),owner).path("code").asInt());
+        var rebound=(com.fasterxml.jackson.databind.node.ObjectNode)created.path("data").deepCopy();
+        rebound.put("bookId",999999L);
+        assertEquals(4003,call(put(path).content(rebound.toString()),member).path("code").asInt());
+        assertEquals(1,call(get("/api/v1/trips"),member).path("data").size());
+        var before=trips.get(ownerId,id);
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        var gate=new java.util.concurrent.CountDownLatch(1);
+        java.util.List<java.util.concurrent.Future<Boolean>> results=new ArrayList<>();
+        try {
+            for(long actor:new long[]{ownerId,memberId}) results.add(pool.submit(()->{
+                gate.await();try{trips.update(actor,id,before);return true;}
+                catch(com.spvermicelli.tripledger.shared.common.exception.BusinessException conflict){
+                    assertEquals(com.spvermicelli.tripledger.shared.common.enums.ErrorCode.CONFLICT,conflict.getErrorCode());return false;
+                }
+            }));
+            gate.countDown();int successes=0;for(var result:results)if(result.get(10,java.util.concurrent.TimeUnit.SECONDS))successes++;
+            assertEquals(1,successes);
+        } finally {pool.shutdownNow();}
+        assertEquals(1,trips.get(ownerId,id).version());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM tb_trip_change WHERE trip_id=? AND action='UPDATED'",Integer.class,id));
+        assertEquals(0,call(get(path+"/changes"),member).path("code").asInt());
+        assertEquals(0,call(delete(path+"/members/"+memberId),owner).path("code").asInt());
+        assertEquals(4004,call(get(path),member).path("code").asInt());
+        assertEquals(4004,call(get(path+"/changes"),member).path("code").asInt());
+        assertEquals(4003,call(put(path).content(created.path("data").toString()),member).path("code").asInt());
+    }
+
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
+    @Test void rollbackRemovesBothTripMutationAndAudit() throws Exception {
+        login();long owner=users.getFirst();
+        var base=new com.spvermicelli.tripledger.travel.domain.Trip(null,0,"事务回滚","杭州",
+            java.time.LocalDate.of(2026,9,26),java.time.LocalDate.of(2026,9,27),2,10000,"balanced","culture","metro",null,false,List.of());
+        var trip=trips.create(owner,base);tripIds.add(trip.id());
+        var tx=new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        tx.execute(status->{trips.update(owner,trip.id(),trip);status.setRollbackOnly();return null;});
+        assertEquals(0,trips.get(owner,trip.id()).version());
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM tb_trip_change WHERE trip_id=? AND action='UPDATED'",Integer.class,trip.id()));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM tb_trip_change WHERE trip_id=? AND action='CREATED'",Integer.class,trip.id()));
+    }
+
+    @Autowired com.spvermicelli.tripledger.travel.application.TripInvitationService invitations;
+    @Autowired com.spvermicelli.tripledger.travel.application.TripCollaborationService collaboration;
+    @Test void invitationRequiresRecipientConsentAndCannotRestoreRevokedMembership() throws Exception {
+        login();login();login();long owner=users.get(0),recipient=users.get(1),other=users.get(2);
+        var trip=trips.create(owner,new com.spvermicelli.tripledger.travel.domain.Trip(null,0,"邀请","杭州",java.time.LocalDate.of(2026,9,26),java.time.LocalDate.of(2026,9,27),2,10000,"balanced","culture","metro",null,false,List.of()));tripIds.add(trip.id());
+        var invite=invitations.create(owner,trip.id(),recipient,"EDITOR");
+        assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,()->trips.get(recipient,trip.id()));
+        assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,()->invitations.accept(other,invite.token()));
+        assertEquals(trip.id().longValue(),invitations.accept(recipient,invite.token()));
+        assertEquals(trip.id().longValue(),invitations.accept(recipient,invite.token()));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM tb_trip_change WHERE trip_id=? AND action='INVITE_ACCEPTED'",Integer.class,trip.id()));
+        jdbc.update("DELETE FROM tb_trip_member WHERE trip_id=? AND user_id=?",trip.id(),recipient);
+        assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,()->invitations.accept(recipient,invite.token()));
+        var revoked=invitations.create(owner,trip.id(),recipient,"VIEWER");invitations.revoke(owner,trip.id(),revoked.id());
+        assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,()->invitations.accept(recipient,revoked.token()));
+        var removed=invitations.create(owner,trip.id(),recipient,"VIEWER");
+        collaboration.removeMember(owner,trip.id(),recipient);
+        assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,()->invitations.accept(recipient,removed.token()));
+        var expired=invitations.create(owner,trip.id(),recipient,"VIEWER");jdbc.update("UPDATE tb_trip_invite SET expires_at=DATE_SUB(NOW(),INTERVAL 1 SECOND) WHERE id=?",expired.id());
+        assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,()->invitations.accept(recipient,expired.token()));
+    }
+
     @Test void persistenceOwnershipVersionAndDraftLifecycle() throws Exception {
         String owner=login(),outsider=login();
         String payload="""

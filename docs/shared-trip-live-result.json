@@ -1,0 +1,14 @@
+{
+  "date": "2026-09-21",
+  "tripId": 7,
+  "entrypoint": "http://127.0.0.1:4178/api/v1",
+  "checks": [
+    "create",
+    "version increments to 1",
+    "stale version conflict",
+    "CREATED and UPDATED history only",
+    "history cursor",
+    "owner membership"
+  ],
+  "scope": "local proxy HTTP; two-user concurrency and revocation verified in isolated integration tests"
+}

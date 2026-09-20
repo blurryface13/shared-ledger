@@ -4,13 +4,13 @@ import java.util.List;
 import lombok.Data;
 public interface TripMapper {
     @Data class Row { private Long id; private Long ownerId; private Long version; private Long bookId; private String payload; }
-    @Select("SELECT id,owner_id,version,book_id,payload FROM tb_trip WHERE owner_id=#{userId} ORDER BY updated_at DESC,id DESC LIMIT 200")
+    @Select("SELECT id,owner_id,version,book_id,payload FROM tb_trip WHERE (owner_id=#{userId} OR EXISTS (SELECT 1 FROM tb_trip_member m WHERE m.trip_id=tb_trip.id AND m.user_id=#{userId})) ORDER BY updated_at DESC,id DESC LIMIT 200")
     List<Row> list(long userId);
-    @Select("SELECT id,owner_id,version,book_id,payload FROM tb_trip WHERE id=#{id} AND owner_id=#{userId}")
+    @Select("SELECT id,owner_id,version,book_id,payload FROM tb_trip WHERE id=#{id} AND (owner_id=#{userId} OR EXISTS (SELECT 1 FROM tb_trip_member m WHERE m.trip_id=tb_trip.id AND m.user_id=#{userId}))")
     Row find(@Param("userId")long userId,@Param("id")long id);
     @Insert("INSERT INTO tb_trip(owner_id,version,book_id,payload) VALUES(#{ownerId},0,#{bookId},#{payload})")
     @Options(useGeneratedKeys=true,keyProperty="id") int insert(Row row);
-    @Update("UPDATE tb_trip SET payload=#{payload},book_id=#{bookId},version=version+1 WHERE id=#{id} AND owner_id=#{ownerId} AND version=#{version}")
+    @Update("UPDATE tb_trip SET payload=#{payload},book_id=#{bookId},version=version+1 WHERE id=#{id} AND (owner_id=#{ownerId} OR EXISTS (SELECT 1 FROM tb_trip_member m WHERE m.trip_id=tb_trip.id AND m.user_id=#{ownerId} AND m.role='EDITOR')) AND version=#{version}")
     int update(Row row);
     @Insert("INSERT INTO tb_trip_plan(owner_id,trip_id,base_version,payload) VALUES(#{ownerId},#{bookId},#{version},#{payload})")
     @Options(useGeneratedKeys=true,keyProperty="id") int insertPlan(Row row);

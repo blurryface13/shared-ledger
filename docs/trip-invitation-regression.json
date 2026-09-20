@@ -1,0 +1,23 @@
+{
+  "stage": "E15",
+  "environment": "isolated MySQL Redis RabbitMQ; full Maven suite",
+  "tests": 73,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "scope": [
+    "recipient consent",
+    "wrong recipient rejection",
+    "repeat acceptance",
+    "revocation",
+    "expiry",
+    "removed member old token rejection",
+    "pending invite invalidation on member removal"
+  ],
+  "limitations": [
+    "no email delivery",
+    "registered recipients only",
+    "no invitation UI",
+    "no load test"
+  ]
+}
