@@ -1274,6 +1274,36 @@ class BillingSettlementIntegrationTest {
     }
 
     @Test
+    void shouldExposeDeliveryStateOnlyToInitiatorAndUpdateRetryEligibility() throws Exception {
+        var fixture = createSharedBookFixture("delivery-status");
+        Long id = exportApplicationService.exportPersonalDetail(fixture.ownerUserId, fixture.bookId).getExportRecordId();
+        exportRecordIds.add(id);
+        var pending = exportApplicationService.getExportRecords(fixture.ownerUserId, fixture.bookId).getFirst();
+        org.junit.jupiter.api.Assertions.assertEquals("PENDING", pending.getDeliveryStatus());
+        org.junit.jupiter.api.Assertions.assertNotNull(pending.getNextPublishAttemptAt());
+        org.junit.jupiter.api.Assertions.assertFalse(pending.isRetryable());
+        org.junit.jupiter.api.Assertions.assertTrue(exportApplicationService.getExportRecords(fixture.memberUserId, fixture.bookId).isEmpty());
+        jdbcTemplate.update("UPDATE export_outbox SET status='DEAD',attempts=8 WHERE export_record_id=?", id);
+        var dead = exportApplicationService.getExportRecords(fixture.ownerUserId, fixture.bookId).getFirst();
+        org.junit.jupiter.api.Assertions.assertEquals("DEAD", dead.getDeliveryStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(8, dead.getPublishAttempts());
+        org.junit.jupiter.api.Assertions.assertNull(dead.getNextPublishAttemptAt());
+        org.junit.jupiter.api.Assertions.assertTrue(dead.isRetryable());
+        exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id);
+        org.junit.jupiter.api.Assertions.assertFalse(exportApplicationService.getExportRecords(fixture.ownerUserId, fixture.bookId).getFirst().isRetryable());
+        awaitExportSnapshot(id);
+        var success = exportApplicationService.getExportRecords(fixture.ownerUserId, fixture.bookId).getFirst();
+        org.junit.jupiter.api.Assertions.assertEquals("SENT", success.getDeliveryStatus());
+        org.junit.jupiter.api.Assertions.assertEquals("SUCCESS", success.getExportStatus());
+        org.junit.jupiter.api.Assertions.assertFalse(success.isRetryable());
+        jdbcTemplate.update("DELETE FROM export_outbox WHERE export_record_id=?", id);
+        var legacy = exportApplicationService.getExportRecords(fixture.ownerUserId, fixture.bookId).getFirst();
+        org.junit.jupiter.api.Assertions.assertEquals("LEGACY", legacy.getDeliveryStatus());
+        org.junit.jupiter.api.Assertions.assertNull(legacy.getPublishAttempts());
+        org.junit.jupiter.api.Assertions.assertFalse(legacy.isRetryable());
+    }
+
+    @Test
     void shouldRecoverDeadDeliveryAndKeepRepeatedRetryHarmless() throws Exception {
         var fixture = createSharedBookFixture("retry-dead");
         var result = exportApplicationService.exportPersonalDetail(fixture.ownerUserId, fixture.bookId);

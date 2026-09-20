@@ -234,7 +234,10 @@ public class ExportApplicationService {
     @Transactional(readOnly = true)
     public List<ExportRecordResult> getExportRecords(Long currentUserId, Long bookId) {
         BookMember currentMember = requireActiveMember(bookId, currentUserId);
-        return exportRecordRepository.findByBookIdAndOperatorMemberId(bookId, currentMember.getId()).stream()
+        var records = exportRecordRepository.findByBookIdAndOperatorMemberId(bookId, currentMember.getId());
+        var deliveries = exportOutbox.findDeliveries(records.stream().map(ExportRecord::getId).toList());
+        var book = bookRepository.findById(bookId).filter(Book::isActive);
+        return records.stream()
             .sorted(Comparator.comparing(ExportRecord::getCreatedAt).reversed())
             .map(record -> ExportRecordResult.builder()
                 .exportRecordId(record.getId())
@@ -242,6 +245,16 @@ public class ExportApplicationService {
                 .operatorMemberId(record.getOperatorMemberId())
                 .exportType(record.getExportType().getCode())
                 .exportStatus(record.getExportStatus().getCode())
+                .deliveryStatus(deliveries.containsKey(record.getId()) ? deliveries.get(record.getId()).status() : "LEGACY")
+                .publishAttempts(deliveries.containsKey(record.getId()) ? deliveries.get(record.getId()).attempts() : null)
+                .nextPublishAttemptAt(deliveries.containsKey(record.getId()) && "PENDING".equals(deliveries.get(record.getId()).status())
+                    ? deliveries.get(record.getId()).nextAttemptAt() : null)
+                .retryable(book.isPresent()
+                    && (record.getExportType() != ExportType.BOOK_SUMMARY || Objects.equals(book.get().getOwnerUserId(), currentUserId))
+                    && record.getExportStatus() != ExportStatus.SUCCESS
+                    && (deliveries.containsKey(record.getId()) && "DEAD".equals(deliveries.get(record.getId()).status())
+                        || record.getExportStatus() == ExportStatus.FAILED && (!deliveries.containsKey(record.getId())
+                            || "SENT".equals(deliveries.get(record.getId()).status()))))
                 .fileUrl(record.getFileUrl())
                 .exportContentJson(record.getExportContentJson())
                 .errorMessage(record.getErrorMessage())

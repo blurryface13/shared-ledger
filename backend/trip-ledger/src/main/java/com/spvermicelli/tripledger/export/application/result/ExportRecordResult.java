@@ -12,6 +12,10 @@ public class ExportRecordResult {
     private Long operatorMemberId;
     private String exportType;
     private String exportStatus;
+    private String deliveryStatus;
+    private Integer publishAttempts;
+    private LocalDateTime nextPublishAttemptAt;
+    private boolean retryable;
     private String fileUrl;
     private String exportContentJson;
     private String errorMessage;

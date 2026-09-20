@@ -1,0 +1,11 @@
+{
+  "date": "2026-09-20",
+  "entrypoint": "http://127.0.0.1:4178/api/v1",
+  "exportRecordId": 12,
+  "deliveryStatus": "SENT",
+  "exportStatus": "SUCCESS",
+  "publishAttempts": 1,
+  "retryable": false,
+  "nextPublishAttemptAt": null,
+  "scope": "read-only local HTTP listing via frontend proxy"
+}
