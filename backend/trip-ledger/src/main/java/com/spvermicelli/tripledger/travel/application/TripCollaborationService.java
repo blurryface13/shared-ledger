@@ -55,7 +55,7 @@ public class TripCollaborationService {
     }
     public List<Map<String,Object>> members(long user,long id) {
         trips.find(user,id);
-        return jdbc.queryForList("SELECT owner_id AS user_id,'OWNER' AS role FROM tb_trip WHERE id=? UNION ALL SELECT user_id,role FROM tb_trip_member WHERE trip_id=?",id,id);
+        return jdbc.queryForList("SELECT t.owner_id AS user_id,'OWNER' AS role,u.nickname FROM tb_trip t JOIN tb_user u ON u.id=t.owner_id WHERE t.id=? UNION ALL SELECT m.user_id,m.role,u.nickname FROM tb_trip_member m JOIN tb_user u ON u.id=m.user_id WHERE m.trip_id=?",id,id);
     }
     public List<Map<String,Object>> changes(long user,long id,long after) {
         trips.find(user,id);

@@ -115,6 +115,25 @@ class TravelIntegrationTest {
         assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,()->invitations.accept(recipient,expired.token()));
     }
 
+    @Test void invitationHistoryIsOwnerOnlyPaginatedAndRedacted() throws Exception {
+        String ownerToken=login(),recipientToken=login();long owner=users.get(0),recipient=users.get(1);
+        var trip=trips.create(owner,new com.spvermicelli.tripledger.travel.domain.Trip(null,0,"历史","杭州",java.time.LocalDate.of(2026,9,26),java.time.LocalDate.of(2026,9,27),2,10000,"balanced","culture","metro",null,false,List.of()));tripIds.add(trip.id());
+        var first=invitations.create(owner,trip.id(),recipient,"VIEWER");
+        var second=invitations.create(owner,trip.id(),recipient,"EDITOR");
+        jdbc.update("UPDATE tb_trip_invite SET expires_at=DATE_SUB(NOW(),INTERVAL 1 SECOND) WHERE id=?",second.id());
+        var response=call(get("/api/v1/trips/"+trip.id()+"/invitations"),ownerToken);
+        assertEquals(0,response.path("code").asInt());var rows=response.path("data");assertEquals(2,rows.size());
+        assertEquals("EXPIRED",rows.get(0).path("status").asText());assertEquals("REVOKED",rows.get(1).path("status").asText());
+        assertEquals("旅行测试",rows.get(0).path("nickname").asText());
+        assertFalse(response.toString().contains("token"));assertFalse(response.toString().contains("mobile"));
+        assertFalse(response.toString().contains(second.token()));
+        assertEquals(1,invitations.history(owner,trip.id(),second.id()).size());
+        assertEquals(first.id(),((Number)invitations.history(owner,trip.id(),second.id()).getFirst().get("id")).longValue());
+        collaboration.setMember(owner,trip.id(),recipient,"EDITOR");
+        assertEquals(4003,call(get("/api/v1/trips/"+trip.id()+"/invitations"),recipientToken).path("code").asInt());
+        assertEquals("旅行测试",collaboration.members(recipient,trip.id()).getFirst().get("nickname"));
+    }
+
     @Test void persistenceOwnershipVersionAndDraftLifecycle() throws Exception {
         String owner=login(),outsider=login();
         String payload="""

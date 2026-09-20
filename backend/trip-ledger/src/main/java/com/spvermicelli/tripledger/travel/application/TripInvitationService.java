@@ -18,6 +18,13 @@ public class TripInvitationService {
     public TripInvitationService(JdbcTemplate jdbc, TripCollaborationService collaboration) {
         this.jdbc=jdbc; this.collaboration=collaboration;
     }
+    @Transactional
+    public java.util.List<java.util.Map<String,Object>> history(long owner,long trip,long before) {
+        collaboration.requireOwner(owner,trip);
+        if(before<0) throw invalid();
+        // Explicit projection: never expose hashes, tokens or private contact information.
+        return jdbc.queryForList("SELECT i.id,i.target_user_id,u.nickname,i.role,CASE WHEN i.status='PENDING' AND i.expires_at<=NOW() THEN 'EXPIRED' ELSE i.status END AS status,i.created_at,i.expires_at FROM tb_trip_invite i JOIN tb_user u ON u.id=i.target_user_id WHERE i.trip_id=? AND (?=0 OR i.id<?) ORDER BY i.id DESC LIMIT 50",trip,before,before);
+    }
     public record Invitation(long id, String token, int expiresInHours) {}
     @Transactional
     public Invitation create(long owner,long trip,long target,String role) {

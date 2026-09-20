@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 public class TripInvitationController {
  private final TripInvitationService service;
  public TripInvitationController(TripInvitationService service){this.service=service;}
+ @GetMapping("/{id}/invitations") public ApiResponse<?> history(@PathVariable long id,@RequestParam(defaultValue="0") long before){return ApiResponse.success(service.history(UserContextHolder.getUserId(),id,before));}
  public record Create(long targetUserId,String role){}
  public record Accept(String token){}
  @PostMapping("/{id}/invitations") public ApiResponse<?> create(@PathVariable long id,@RequestBody Create request){return ApiResponse.success(service.create(UserContextHolder.getUserId(),id,request.targetUserId(),request.role()));}
