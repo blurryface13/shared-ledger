@@ -20,23 +20,49 @@ window.ledgerApi = (() => {
     if (!response.ok || result.code !== 0) { const error=new Error(result.message || `请求失败 (${response.status})`);error.code=result.code;throw error; }
     return result.data;
   }
+  function pendingSlot(ownerId, bookId) {
+    if (!Number.isSafeInteger(Number(ownerId)) || Number(ownerId)<=0 || !Number.isSafeInteger(Number(bookId)) || Number(bookId)<=0) throw new Error('无法确认待提交账单所属账户');
+    return `trip-ledger-pending-v1:${ownerId}:${bookId}`;
+  }
+  function recoverBill(ownerId, bookId) {
+    const raw = sessionStorage.getItem(pendingSlot(ownerId,bookId));
+    if (!raw) return null;
+    const pending = JSON.parse(raw);
+    if (String(pending.ownerId)!==String(ownerId) || String(pending.bookId)!==String(bookId) ||
+        ![`/api/v1/books/${bookId}/bills/personal-bill`,`/api/v1/books/${bookId}/bills/shared-expense`].includes(pending.path) ||
+        !/^[A-Za-z0-9_-]{16,128}$/.test(pending.key) || !pending.body || typeof pending.body!=='object') throw new Error('待提交记录无效，请先核对账本');
+    return pending;
+  }
+  function storePending(pending) {
+    if (pending.ownerId === undefined) return; // Non-persistent API callers.
+    const slot=pendingSlot(pending.ownerId,pending.bookId);
+    const previous=recoverBill(pending.ownerId,pending.bookId);
+    if(previous && (previous.key!==pending.key || JSON.stringify(previous.body)!==JSON.stringify(pending.body))) throw new Error('请先处理上次未确认的账单');
+    sessionStorage.setItem(slot,JSON.stringify(pending)); // Fail closed before network when storage is unavailable.
+  }
+  function clearPending(pending) {
+    if(pending.ownerId !== undefined) sessionStorage.removeItem(pendingSlot(pending.ownerId,pending.bookId));
+  }
   // Only an explicit parameter rejection permits changing this submission.
   // Conflicts, authentication failures and transport failures may follow a committed request.
   async function submitBill(holder, pending = holder.pendingBill) {
+    storePending(pending);
     holder.pendingBill = pending;
     try {
       const result = await request(pending.path, {method:'POST', body:pending.body, idempotencyKey:pending.key});
+      clearPending(pending);
       holder.pendingBill = null;
       return result;
     } catch (error) {
       if (error.code === 4001) {
+        clearPending(pending);
         holder.pendingBill = null;
         throw new Error('账单未被接受，请修改后重新提交。' + error.message);
       }
       throw new Error('提交结果未确认，请保留原内容重试或先核对账本。' + error.message);
     }
   }
-  return { request, submitBill, setSession, get session(){return session;}, get:path=>request(path), post:(path,body={})=>request(path,{method:'POST',body}), put:(path,body)=>request(path,{method:'PUT',body}), delete:path=>request(path,{method:'DELETE'}),
+  return { request, submitBill, recoverBill, setSession, get session(){return session;}, get:path=>request(path), post:(path,body={})=>request(path,{method:'POST',body}), put:(path,body)=>request(path,{method:'PUT',body}), delete:path=>request(path,{method:'DELETE'}),
     async image(url){ const parsed = new URL(url,location.origin); if(!parsed.pathname.startsWith('/api/v1/files/billing/')) throw new Error('凭据地址无效'); return URL.createObjectURL(await request(parsed.pathname,{blob:true})); }
   };
 })();
