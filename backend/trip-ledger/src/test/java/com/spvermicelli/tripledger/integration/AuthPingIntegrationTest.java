@@ -59,6 +59,14 @@ class AuthPingIntegrationTest {
     }
 
     @Test
+    void shouldDenyManagementEndpointsOnBusinessListenerEvenWithForwardedHeaders() throws Exception {
+        for (String path : new String[]{"/actuator", "/actuator/health", "/actuator/prometheus", "/actuator/env"}) {
+            mockMvc.perform(get(path).header("X-Forwarded-Port", "9091").header("X-Forwarded-For", "127.0.0.1"))
+                .andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
     void shouldRequireTokenForPingWhenAuthEnabled() throws Exception {
         mockMvc.perform(get("/api/v1/ping"))
             .andExpect(status().isOk())

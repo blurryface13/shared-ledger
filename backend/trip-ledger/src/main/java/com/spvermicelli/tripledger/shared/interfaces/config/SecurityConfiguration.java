@@ -16,14 +16,20 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfiguration {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity,
+        @org.springframework.beans.factory.annotation.Value("${management.server.port:-1}") int managementPort) throws Exception {
         return httpSecurity
             .csrf(csrf -> csrf.disable())
             .formLogin(formLogin -> formLogin.disable())
             .httpBasic(httpBasic -> httpBasic.disable())
             .logout(logout -> logout.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+            .authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/actuator/health", "/actuator/prometheus").access((authentication, context) ->
+                    new org.springframework.security.authorization.AuthorizationDecision(
+                        managementPort > 0 && context.getRequest().getLocalPort() == managementPort))
+                .requestMatchers("/actuator", "/actuator/**").denyAll()
+                .anyRequest().permitAll())
             .cors(Customizer.withDefaults())
             .build();
     }

@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-20",
+  "managementAddress": "127.0.0.1:9091",
+  "prometheusStatus": 200,
+  "verifiedMetricFamilies": [
+    "jvm_memory_used_bytes",
+    "hikaricp_connections",
+    "http_server_requests_seconds",
+    "tripledger_export_pending",
+    "tripledger_export_collection_success"
+  ],
+  "businessPortWithSpoofedForwardedHeaders": 403,
+  "envEndpointStatus": 403,
+  "scope": "local running application; no Prometheus server or notifications deployed"
+}
