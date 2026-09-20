@@ -33,3 +33,9 @@
 6. 归档报告位置、未解决问题及复现步骤，更新交接记录。失败不得记为完成。
 
 后续 CI 使用隔离数据库与固定版本依赖，无需真实用户账户或地图生产 Key。当前尚未新增 CI 工作流、Testcontainers 或自动 UI 测试，不将它们列为已交付能力。
+
+## 2026-09-20 新增幂等回归
+
+新增 `RedisIdempotencyServiceTest` 的 5 项测试，使用真实 Redis 验证键的持有者和并发行为，清理失败通过故障注入验证。使用 `SPRING_DATA_REDIS_HOST/PORT/USERNAME/PASSWORD/DATABASE` 配置独立测试 Redis；默认 localhost:6379、数据库 0，每个测试使用 UUID 命名空间，仅删除自身键。Redis 不可用时测试应失败，不自动跳过。
+
+后端目录执行 `mvn -B -Dtest=RedisIdempotencyServiceTest,TravelDomainTest test` 可运行本次定向回归（Java 21）。本次 11 项通过，不代表全量数据库、MQ 或 UI 回归已经执行。该类也会被统一入口的 Maven 全量测试自动发现。
