@@ -32,6 +32,12 @@ public class ExportController {
         return ApiResponse.success(toResponse(exportApplicationService.exportBookSummary(UserContextHolder.getUserId(), bookId)));
     }
 
+    @PostMapping("/{exportRecordId}/retry")
+    public ApiResponse<Void> retry(@PathVariable Long bookId, @PathVariable Long exportRecordId) {
+        exportApplicationService.retryExport(UserContextHolder.getUserId(), bookId, exportRecordId);
+        return ApiResponse.success(null);
+    }
+
     @GetMapping
     public ApiResponse<List<ExportRecordResponse>> getExportRecords(@PathVariable Long bookId) {
         return ApiResponse.success(exportApplicationService.getExportRecords(UserContextHolder.getUserId(), bookId).stream()

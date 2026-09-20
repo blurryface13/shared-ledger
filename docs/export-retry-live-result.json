@@ -1,0 +1,11 @@
+{
+  "date": "2026-09-20",
+  "entrypoint": "http://127.0.0.1:4178/api/v1",
+  "bookId": 73,
+  "exportRecordId": 12,
+  "checks": [
+    "successful export retry twice accepted without changing snapshot or timestamps",
+    "wrong-book path rejected"
+  ],
+  "scope": "local HTTP route and success protection; failed-task recovery covered by isolated integration tests"
+}

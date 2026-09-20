@@ -1273,6 +1273,61 @@ class BillingSettlementIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(snapshot,exportRecordMapper.selectById(record.getId()).getExportContentJson());
     }
 
+    @Test
+    void shouldRecoverDeadDeliveryAndKeepRepeatedRetryHarmless() throws Exception {
+        var fixture = createSharedBookFixture("retry-dead");
+        var result = exportApplicationService.exportPersonalDetail(fixture.ownerUserId, fixture.bookId);
+        Long id = result.getExportRecordId();
+        exportRecordIds.add(id);
+        jdbcTemplate.update("UPDATE export_outbox SET status='DEAD', attempts=8 WHERE export_record_id=?", id);
+        org.junit.jupiter.api.Assertions.assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,
+            () -> exportApplicationService.retryExport(fixture.memberUserId, fixture.bookId, id));
+        org.junit.jupiter.api.Assertions.assertEquals("DEAD", jdbcTemplate.queryForObject(
+            "SELECT status FROM export_outbox WHERE export_record_id=?", String.class, id));
+        exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id);
+        exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id);
+        org.junit.jupiter.api.Assertions.assertEquals(1, jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM export_outbox WHERE export_record_id=? AND status='PENDING' AND attempts=0", Integer.class, id));
+        awaitExportSnapshot(id);
+        String snapshot = exportRecordMapper.selectById(id).getExportContentJson();
+        exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id);
+        org.junit.jupiter.api.Assertions.assertEquals("SENT", jdbcTemplate.queryForObject(
+            "SELECT status FROM export_outbox WHERE export_record_id=?", String.class, id));
+        org.junit.jupiter.api.Assertions.assertEquals(snapshot, exportRecordMapper.selectById(id).getExportContentJson());
+    }
+
+    @Test
+    void shouldRecoverLegacyFailedTaskWithoutOutboxAndRejectWrongBook() throws Exception {
+        var fixture = createSharedBookFixture("retry-legacy");
+        var record = new ExportRecordPO();
+        record.setBookId(fixture.bookId);
+        record.setOperatorMemberId(fixture.ownerMemberId);
+        record.setExportType(com.spvermicelli.tripledger.shared.domain.enums.ExportType.PERSONAL_DETAIL);
+        record.setExportStatus(com.spvermicelli.tripledger.shared.domain.enums.ExportStatus.FAILED);
+        exportRecordMapper.insert(record);
+        Long id = record.getId(); exportRecordIds.add(id);
+        org.junit.jupiter.api.Assertions.assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,
+            () -> exportApplicationService.retryExport(fixture.ownerUserId, -1L, id));
+        exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id);
+        exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id);
+        awaitExportSnapshot(id);
+    }
+
+    @Test
+    void shouldRequeueFailedConsumerWithSentOutbox() throws Exception {
+        var fixture = createSharedBookFixture("retry-consumer");
+        var result = exportApplicationService.exportPersonalDetail(fixture.ownerUserId, fixture.bookId);
+        Long id = result.getExportRecordId(); exportRecordIds.add(id);
+        jdbcTemplate.update("UPDATE export_outbox SET status='SENT',attempts=1 WHERE export_record_id=?", id);
+        bookMemberMapper.update(null,new LambdaUpdateWrapper<BookMemberPO>().eq(BookMemberPO::getId,fixture.ownerMemberId).set(BookMemberPO::getMemberStatus,MemberStatus.QUIT));
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> exportApplicationService.processExportTask(id));
+        org.junit.jupiter.api.Assertions.assertThrows(com.spvermicelli.tripledger.shared.common.exception.BusinessException.class,
+            () -> exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id));
+        bookMemberMapper.update(null,new LambdaUpdateWrapper<BookMemberPO>().eq(BookMemberPO::getId,fixture.ownerMemberId).set(BookMemberPO::getMemberStatus,MemberStatus.ACTIVE));
+        exportApplicationService.retryExport(fixture.ownerUserId, fixture.bookId, id);
+        awaitExportSnapshot(id);
+    }
+
     @Autowired
     private com.spvermicelli.tripledger.export.infrastructure.messaging.ExportTaskPublisher exportTaskPublisher;
 

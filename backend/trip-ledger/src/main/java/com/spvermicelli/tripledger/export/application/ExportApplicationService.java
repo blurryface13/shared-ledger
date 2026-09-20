@@ -93,6 +93,27 @@ public class ExportApplicationService {
         return createExportTask(bookId, currentMember.getId(), ExportType.BOOK_SUMMARY);
     }
 
+    @Transactional
+    public void retryExport(Long currentUserId, Long bookId, Long exportRecordId) {
+        BookMember member = requireActiveMember(bookId, currentUserId);
+        ExportRecord record = exportRecordRepository.findById(exportRecordId)
+            .filter(r -> Objects.equals(r.getBookId(), bookId))
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "导出记录不存在"));
+        if (!Objects.equals(record.getOperatorMemberId(), member.getId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅导出发起者可以重试");
+        }
+        Book book = bookRepository.findById(bookId).filter(Book::isActive)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "账本不存在"));
+        if (record.getExportType() == ExportType.BOOK_SUMMARY && !Objects.equals(book.getOwnerUserId(), currentUserId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅账本创建者可以导出全账本消费汇总");
+        }
+        // Successful snapshots are immutable; duplicate retry requests are harmless.
+        if (record.getExportStatus() == ExportStatus.SUCCESS) return;
+        if (exportOutbox.retry(exportRecordId, record.getExportStatus() == ExportStatus.FAILED)) {
+            log.info("Export retry queued exportId={} memberId={}", exportRecordId, member.getId());
+        }
+    }
+
     @Transactional(noRollbackFor = RuntimeException.class)
     public void processExportTask(Long exportRecordId) {
         ExportRecord record = exportRecordRepository.findById(exportRecordId)

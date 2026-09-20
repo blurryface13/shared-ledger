@@ -1,0 +1,108 @@
+{
+  "date": "2026-09-20",
+  "tests": 64,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "environment": "Java 21; isolated regression MySQL database, RabbitMQ namespace and Redis prefixes; local real middleware",
+  "suites": [
+    {
+      "name": "com.spvermicelli.tripledger.TripLedgerApplicationTests",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.export.ExportOutboxTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.export.ExportPublisherTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.integration.AuthPingIntegrationTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.integration.BillingSettlementIntegrationTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.integration.LedgerBookIntegrationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.integration.LedgerCategoryIntegrationTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.integration.LedgerMemberInvitationIntegrationTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.integration.LedgerTempParticipantIntegrationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.integration.UserMapperIntegrationTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.shared.infrastructure.persistence.DurableIdempotencyServiceTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.shared.infrastructure.redis.RedisIdempotencyServiceTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.travel.TravelDomainTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.spvermicelli.tripledger.travel.TravelIntegrationTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ]
+}
