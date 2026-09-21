@@ -3,6 +3,11 @@
   const api=window.ledgerApi, main=$('#primary');
   const sharing=window.tripCollaboration.create(api);
   const sync=window.tripSync.create(api);
+  const socketUrl=new URL('/ws/trips',location.href);
+  socketUrl.protocol=location.protocol==='https:'?'wss:':'ws:';
+  // The local Python HTTP proxy cannot upgrade connections. Production uses same-origin /ws/trips.
+  if(['127.0.0.1','localhost'].includes(location.hostname)&&location.port==='4178')socketUrl.port='8081';
+  const push=window.tripPush.create({Socket:WebSocket,url:socketUrl.href,notify:()=>checkTripChanges()});
   const tripWritable=()=>['OWNER','EDITOR'].includes(sharing.role(user?.userId));
   const names={bills:'明细',statistics:'统计',members:'成员',requests:'审批',settlement:'结算',settings:'设置'};
   const types={SHARED_EXPENSE:'共享支出',PERSONAL_EXPENSE:'个人支出',PERSONAL_INCOME:'个人收入',PERSONAL_CARRY:'临时成员代付'};
@@ -56,7 +61,7 @@
   function paper(){if(view==='ledger'&&book)return `<div class="paper-brand">SHARED LEDGER</div><div class="paper-title">${e(book.name)}</div><p class="paper-meta">当前可见明细 · 第 ${page} 页</p>${bills.list.map(b=>`<div class="paper-row"><span>${e(b.billTime?.slice(5,10))}</span><div>${e(b.title)}<small>${currency(b.billAmountCent)} · ${e(b.categoryName)}</small></div>`).join('')}<p class="paper-meta">完整导出由服务器生成，按当前成员权限裁剪。</p>`;if(!trip)return '';return `<div class="paper-brand">ITINERARY</div><div class="paper-title">${e(trip.name)}</div>${state.days.map((items,i)=>`<section class="paper-day"><b>${tripDayLabel(i)} · 第 ${i+1} 天</b>${items.map(a=>`<div class="paper-row"><span>${e(a.time)}</span><div>${e(a.title)}<small>${duration(a.duration)} · ${e(a.note)}</small></div></div>`).join('')}</section>`).join('')}`;}
   render=function(){$('#primary').setAttribute('aria-label',view==='ledger'?'账本内容':'行程内容');$('.export-stage').setAttribute('aria-label',view==='ledger'?'账本导出预览':'行程导出预览');$('.preview-paper').setAttribute('aria-label',view==='ledger'?'展开账本导出预览':'展开行程导出预览');$('#account-button').hidden=!user;$('#account-button').textContent=user?.nickname||'';const detail=view==='ledger'?!!book:view==='itinerary'?!!trip:false;document.body.classList.toggle('collection-screen',!detail);document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('.breadcrumb').innerHTML=detail?button(view==='ledger'?'‹ 全部账本':'‹ 全部行程','back'):`<strong>${view==='ledger'?'Ledgers':view==='itinerary'?'Trips':'Gallery'}</strong>`;$('#page-kicker').textContent=view.toUpperCase();$('#page-title').textContent=view==='ledger'?(book?.name||'我的账本'):view==='itinerary'?(trip?.name||'我的行程'):'Gallery';$('#page-subtitle').textContent=detail?(view==='ledger'?`${activeMembers().length} 位成员 · ${label(book.currentMemberRole)}`:`${trip.people} 人 · ${trip.startDate} 至 ${trip.endDate}`):'';$('.context-panel').hidden=!detail;$('.top-actions').hidden=!detail;$('.avatars').hidden=true;$('.side-trip').hidden=true;$('.trip-stamp').hidden=!trip||view!=='itinerary';if(trip){$('.trip-stamp').innerHTML=`<span>${e(trip.destination)}</span><b>${trip.startDate.slice(8)} – ${trip.endDate.slice(8)}</b><small>${trip.startDate.slice(0,7)}</small>`;}
     $('.agent-entry').hidden=!detail;$('.agent-entry span').textContent=view==='ledger'?'帮我算账':'行程助手';$('.companion-head strong').textContent=view==='ledger'?'帮我算账':'行程助手';$('.tiny-tag').textContent=view==='ledger'?'':'轻量规划';$('.wide-link').innerHTML=view==='ledger'?'查看往来与结算 ↗':'规划偏好 ↗';$('.export-heading h2').textContent=view==='ledger'?'账本导出':'行程单';$('.export-heading p').textContent=view==='ledger'?'完整明细 · 服务端生成':'行程记录 · PDF / 打印';$('.top-actions .quiet').textContent=view==='ledger'?'↗ 导出账本':'↗ 导出行程';$('#paper-preview').innerHTML=paper();$('.prototype-note').innerHTML=user?`${e(user.nickname)}<br>${button('切换账户','logout')}`:'尚未登录';$('footer span').textContent='';$('[data-action="reset"]').hidden=true;
-    const quick=$('#quick-add');quick.hidden=!user||view==='media'||(view==='itinerary'&&trip&&(trip.archived||!tripWritable()));quick.setAttribute('aria-label',view==='ledger'?(book?'记一笔':'新建账本'):(trip?'添加行程安排':'新建行程'));if(!user){main.innerHTML=loginHtml();return;}main.innerHTML=(error?`<p class="live-error" role="alert">${e(error)} ${button('重试','refresh')}</p>`:'')+(view==='media'?`<p class="section-description">账单凭据请从对应账单查看、上传；仅向有权限的成员开放。</p><section class="watermark-info"><h2>水印处理</h2><p>等待算法接入。旅行相册上传与分享尚未开放。</p></section>`:detail?(view==='ledger'?ledger():`${tripWritable()?button('日期与关联','trip-settings'):''} ${button('同行成员','trip-members','',`aria-expanded="${sharing.opened}"`)}${sharingHtml()}<div id="trip-sync-status" role="status" aria-live="polite"></div><details class="ledger-details"><summary>修改记录</summary>${button('刷新记录','trip-changes')}<div id="trip-change-log"></div></details> ${trip.archived?'<p class="form-note">已归档，恢复后可编辑。</p>':''}${itineraryHtml()}`):collectionHtml());if(view==='itinerary'&&trip)paintSync();};
+    const quick=$('#quick-add');quick.hidden=!user||view==='media'||(view==='itinerary'&&trip&&(trip.archived||!tripWritable()));quick.setAttribute('aria-label',view==='ledger'?(book?'记一笔':'新建账本'):(trip?'添加行程安排':'新建行程'));if(!user){main.innerHTML=loginHtml();return;}main.innerHTML=(error?`<p class="live-error" role="alert">${e(error)} ${button('重试','refresh')}</p>`:'')+(view==='media'?`<p class="section-description">账单凭据请从对应账单查看、上传；仅向有权限的成员开放。</p><section class="watermark-info"><h2>水印处理</h2><p>等待算法接入。旅行相册上传与分享尚未开放。</p></section>`:detail?(view==='ledger'?ledger():`${tripWritable()?button('日期与关联','trip-settings'):''} ${button('同行成员','trip-members','',`aria-expanded="${sharing.opened}"`)}${sharingHtml()}<div id="trip-sync-status" role="status" aria-live="polite"></div><details class="ledger-details"><summary>修改记录</summary>${button('刷新记录','trip-changes')}<div id="trip-change-log"></div></details> ${trip.archived?'<p class="form-note">已归档，恢复后可编辑。</p>':''}${itineraryHtml()}`):collectionHtml());if(view==='itinerary'&&trip){paintSync();if(!document.hidden)push.start(trip.id,api.session?.token);}else push.stop();};
   function sharingHtml(){
     if(!sharing.opened)return '';
     const owner=sharing.role(user.userId)==='OWNER',roleNames={OWNER:'所有者',EDITOR:'可编辑',VIEWER:'仅查看'};
@@ -73,13 +78,16 @@
     if(log)log.innerHTML=sync.events.slice().reverse().map(x=>row(changeLabel(x.action),`${sharing.members.find(m=>String(m.user_id)===String(x.actor_id))?.nickname||'账号 '+x.actor_id} · ${e(new Date(x.created_at).toLocaleString('zh-CN',{hour12:false}))} · 版本 ${x.version}`)).join('')||empty('暂无已加载记录，点击刷新查看。');
   }
   async function checkTripChanges(){
+    if(!user||view!=='itinerary'||!trip||document.hidden){push.stop();return;}
+    push.start(trip.id,api.session?.token);
     if(!user||view!=='itinerary'||!trip||busy||document.hidden)return;
     await sync.poll();if(view==='itinerary'&&trip&&String(sync.id)===String(trip.id))paintSync();
   }
   setInterval(checkTripChanges,15000);
   window.addEventListener('online',checkTripChanges);
   window.addEventListener('focus',checkTripChanges);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkTripChanges();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)push.stop();else checkTripChanges();});
+  window.addEventListener('pagehide',()=>push.stop());
   function loginHtml(){return `<section class="collection-form"><h2>登录账本</h2><p class="form-note">本地开发可选择已有测试账户。正式环境使用微信登录。</p>${form('login',input('微信登录 code / 本地测试 code','code','','text','required autocomplete="off"'),'登录')}${button('选择本地测试账户','mock-users')}<div id="mock-users"></div></section>`;}
   $('.topbar').insertAdjacentHTML('beforeend','<button id="account-button" data-cmd="account" class="quiet" hidden></button>');
   document.body.insertAdjacentHTML('beforeend','<button id="quick-add" class="quick-add" data-cmd="quick-add" aria-label="新建" hidden>＋</button>');
@@ -106,7 +114,7 @@
     if(cmd==='mock-users'){const list=await api.get('/api/v1/auth/dev/mock-users');preserveView=true;$('#mock-users').innerHTML=list.map(x=>row(x.nickname,x.mobileMasked,button('登录','mock-login',x.suggestedCode))).join('')||empty('暂无测试账户，可填写新的本地 code 创建。');return;}
     if(cmd==='mock-login')return login(id);
     if(cmd==='account'){popup('当前账户',`<p>${e(user.nickname)}</p><p>我的账号 ID：${e(user.userId)}</p><p>${e(user.mobileMasked||'')}</p>${button('退出登录 / 切换账户','logout')}`);return;}
-    if(cmd==='logout'){api.setSession(null);user=null;book=null;trip=null;sharing.reset();sync.reset();closeDialogs();return;}
+    if(cmd==='logout'){api.setSession(null);user=null;book=null;trip=null;sharing.reset();sync.reset();push.stop();closeDialogs();return;}
     if(cmd==='open-book'){view='ledger';section='bills';page=1;await loadBook(id);history.replaceState(null,'',`#ledger/${id}`);return;}
     if(cmd==='open-trip'){view='itinerary';day=0;showRoute=false;await loadTrip(id);history.replaceState(null,'',`#itinerary/${id}`);return;}
     if(cmd==='back'){book=null;trip=null;create=false;await loadLists();history.replaceState(null,'','#'+view);return;}

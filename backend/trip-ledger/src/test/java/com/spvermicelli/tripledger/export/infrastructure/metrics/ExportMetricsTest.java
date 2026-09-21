@@ -13,12 +13,14 @@ class ExportMetricsTest {
         when(jdbc.queryForMap(anyString())).thenReturn(Map.of("pending", 2L, "dead", 1L,
             "failed", 3L, "oldest_pending_seconds", 301L));
         var registry = new SimpleMeterRegistry();
-        new ExportMetrics(jdbc).bindTo(registry);
+        var metrics = new ExportMetrics(jdbc);
+        metrics.bindTo(registry);
         assertEquals(2, registry.get("tripledger.export.pending").gauge().value());
         assertEquals(1, registry.get("tripledger.export.dead").gauge().value());
         assertEquals(301, registry.get("tripledger.export.oldest_pending_seconds").gauge().value());
         assertEquals(1, registry.get("tripledger.export.collection_success").gauge().value());
         verify(jdbc, times(1)).queryForMap(anyString());
+        java.lang.ref.Reference.reachabilityFence(metrics); // Gauge holds a weak reference; keep the test binder alive.
         registry.close();
     }
     @Test void collectionFailureIsNotReportedAsHealthyZero() {

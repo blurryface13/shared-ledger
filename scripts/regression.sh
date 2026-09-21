@@ -8,7 +8,7 @@ if [[ "$mode" == frontend || "$mode" == all ]]; then
   for source_file in app.js api.js amounts.js schedule.js connected.js; do
     node --check "$project_root/fronted/travel-prototype/$source_file"
   done
-  node --test "$project_root/fronted/travel-prototype/amounts.test.cjs" "$project_root/fronted/travel-prototype/schedule.test.cjs" "$project_root/fronted/travel-prototype/api.test.cjs" "$project_root/fronted/travel-prototype/collaboration.test.cjs" "$project_root/fronted/travel-prototype/trip-sync.test.cjs"
+  node --test "$project_root/fronted/travel-prototype/amounts.test.cjs" "$project_root/fronted/travel-prototype/schedule.test.cjs" "$project_root/fronted/travel-prototype/api.test.cjs" "$project_root/fronted/travel-prototype/collaboration.test.cjs" "$project_root/fronted/travel-prototype/trip-sync.test.cjs" "$project_root/fronted/travel-prototype/trip-push.test.cjs"
 fi
 if [[ "$mode" == frontend || "$mode" == all ]]; then
   python3 -m unittest discover -s "$project_root/fronted/travel-prototype" -p "*_test.py"

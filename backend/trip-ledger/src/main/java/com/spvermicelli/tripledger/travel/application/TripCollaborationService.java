@@ -14,7 +14,8 @@ import java.util.Map;
 public class TripCollaborationService {
     private final JdbcTemplate jdbc;
     private final TripRepository trips;
-    public TripCollaborationService(JdbcTemplate jdbc, TripRepository trips) { this.jdbc=jdbc; this.trips=trips; }
+    private final org.springframework.context.ApplicationEventPublisher events;
+    public TripCollaborationService(JdbcTemplate jdbc, TripRepository trips,org.springframework.context.ApplicationEventPublisher events) { this.jdbc=jdbc; this.trips=trips; this.events=events; }
     // Writers and membership changes lock the same parent row, so revocation cannot race a write.
     @Transactional(propagation=Propagation.MANDATORY)
     public long requireOwner(long user, long id) {
@@ -35,6 +36,7 @@ public class TripCollaborationService {
     @Transactional(propagation=Propagation.MANDATORY)
     public void record(long user,long id,long version,String action) {
         jdbc.update("INSERT INTO tb_trip_change(trip_id,actor_id,version,action) VALUES(?,?,?,?)",id,user,version,action);
+        events.publishEvent(new com.spvermicelli.tripledger.travel.domain.TripChanged(id));
     }
     @Transactional
     public void setMember(long owner,long id,long target,String role) {

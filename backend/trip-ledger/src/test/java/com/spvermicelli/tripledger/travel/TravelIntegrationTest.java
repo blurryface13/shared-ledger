@@ -134,6 +134,19 @@ class TravelIntegrationTest {
         assertEquals("旅行测试",collaboration.members(recipient,trip.id()).getFirst().get("nickname"));
     }
 
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean com.spvermicelli.tripledger.travel.infrastructure.realtime.TripChangeNotifier notifier;
+    @Test void pushNotificationRunsOnlyAfterCommit() throws Exception {
+        login();long owner=users.getFirst();
+        var trip=trips.create(owner,new com.spvermicelli.tripledger.travel.domain.Trip(null,0,"事务通知","杭州",java.time.LocalDate.of(2026,9,26),java.time.LocalDate.of(2026,9,27),2,10000,"balanced","culture","metro",null,false,List.of()));tripIds.add(trip.id());
+        clearInvocations(notifier);
+        var tx=new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        tx.execute(status->{collaboration.record(owner,trip.id(),0,"ROLLBACK_CHECK");status.setRollbackOnly();return null;});
+        verify(notifier,never()).committed(any());
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM tb_trip_change WHERE trip_id=? AND action='ROLLBACK_CHECK'",Integer.class,trip.id()));
+        tx.execute(status->{collaboration.record(owner,trip.id(),0,"COMMIT_CHECK");verify(notifier,never()).committed(any());return null;});
+        verify(notifier,times(1)).committed(any());
+    }
+
     @Test void persistenceOwnershipVersionAndDraftLifecycle() throws Exception {
         String owner=login(),outsider=login();
         String payload="""

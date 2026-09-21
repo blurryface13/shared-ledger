@@ -1,0 +1,12 @@
+{
+  "tripId": 9,
+  "checks": [
+    "invalid token rejected",
+    "authenticated subscription ready",
+    "committed update pushes hint",
+    "authorized HTTP returns latest snapshot",
+    "revocation closes live socket"
+  ],
+  "transport": "real WebSocket and HTTP; single backend instance",
+  "passed": 5
+}
