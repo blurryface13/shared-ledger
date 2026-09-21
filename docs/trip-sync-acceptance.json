@@ -1,0 +1,12 @@
+{
+  "tripId": 8,
+  "checks": [
+    "disconnected cursor retained",
+    "stale write rejected",
+    "reconnect catches update",
+    "latest snapshot applied",
+    "revoked member denied"
+  ],
+  "transport": "real HTTP via local proxy; disconnect injected in client adapter",
+  "passed": 5
+}
