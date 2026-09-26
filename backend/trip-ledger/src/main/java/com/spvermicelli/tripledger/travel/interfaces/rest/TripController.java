@@ -17,6 +17,8 @@ public class TripController {
     @GetMapping("/{id}") public ApiResponse<Trip> get(@PathVariable long id){return ApiResponse.success(trips.get(user(),id));}
     @PutMapping("/{id}") public ApiResponse<Trip> update(@PathVariable long id,@RequestBody Trip trip){return ApiResponse.success(trips.update(user(),id,trip));}
     @GetMapping("/{id}/places") public ApiResponse<List<MapGateway.Place>> places(@PathVariable long id,@RequestParam String keyword){return ApiResponse.success(trips.places(user(),id,keyword));}
+    @GetMapping("/{id}/center") public ApiResponse<MapGateway.Center> center(@PathVariable long id){return ApiResponse.success(trips.center(user(),id));}
+    @GetMapping("/{id}/nearby") public ApiResponse<List<MapGateway.Place>> nearby(@PathVariable long id,@RequestParam double longitude,@RequestParam double latitude,@RequestParam String category){return ApiResponse.success(trips.nearby(user(),id,longitude,latitude,category));}
     @GetMapping("/{id}/route") public ApiResponse<TripApplicationService.Route> route(@PathVariable long id,@RequestParam int day,@RequestParam(defaultValue="walking")String mode){return ApiResponse.success(trips.route(user(),id,day,mode));}
     @PostMapping("/{id}/plans") public ApiResponse<PlanningApplicationService.Draft> plan(@PathVariable long id,@RequestBody PlanningApplicationService.Request request){return ApiResponse.success(planner.generate(user(),id,request));}
     public record MemberRole(String role){}

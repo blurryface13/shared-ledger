@@ -212,3 +212,11 @@ WatermarkPort：submitEmbed(assetId, payloadRef, algorithmVersion, idempotencyKe
 计划的响应字段：tripId、day、itineraryVersion、mode、status、stops（activityId / poiId / coordinate / coordinateSystem / resolutionStatus）、legs（fromActivityId / toActivityId / geometry / meters / seconds / source / queriedAt / status）。接口路径与地图供应商在后端接入时确定。
 
 该流程无需实时定位：起终点来自用户行程与选定 POI。当前原型仅实现顺序示意画布，未执行坐标查询和路线计算。
+
+### 2026-09-26 实现更新
+
+以上“仅示意、地图服务待接入”描述保留为历史设计过程。现行连接版 Web 已实现可交互真实地图、显式地点搜索、3 公里景点/住宿/餐饮周边、道路步行路线与预报，采用 Leaflet/OSM/OSRM/Open-Meteo；数据来源、坐标系、公共服务限制和后续收尾以 [地图全知视图说明](map-atlas.md) 为准。
+
+## 后端建设优先级确认
+
+传统 Java 后端能力优先；沿用 MyBatis-Plus/MySQL/Redis/RabbitMQ 与 DDD 模块化单体。Agent 限于轻量意图识别和规划草案，后端执行权限、规则、版本与持久化。性能设计必须有业务场景、权衡及可复现实测，不能用臆测的高并发指标包装项目。详细实施次序及验证标准见 [后端实施计划](backend-implementation-plan.md)。

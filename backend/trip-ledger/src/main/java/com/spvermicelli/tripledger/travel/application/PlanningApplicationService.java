@@ -33,7 +33,7 @@ public class PlanningApplicationService {
             if(items.stream().anyMatch(a->a.day()==day&&minute<Trip.time(a.time())+a.duration()+30&&minute+120+30>Trip.time(a.time())))continue;
             while(cursor<candidates.size()&&used.contains(candidates.get(cursor).id()))cursor++;
             if(cursor>=candidates.size())break;
-            var p=candidates.get(cursor++);used.add(p.id());items.add(new Trip.Activity(UUID.randomUUID().toString(),d,p.name(),String.format("%02d:%02d",minute/60,minute%60),120,"营业、票价与预约待确认","blue",false,false,p.id(),p.longitude(),p.latitude()));
+            var p=candidates.get(cursor++);used.add(p.id());items.add(new Trip.Activity(UUID.randomUUID().toString(),d,p.name(),String.format("%02d:%02d",minute/60,minute%60),120,"营业、票价与预约待确认","blue",false,false,p.id(),p.longitude(),p.latitude(),p.coordinateSystem()));
         }
         items.sort(Comparator.comparingInt(Trip.Activity::day).thenComparingInt(a->Trip.time(a.time())));
         trip.planned(items,r.people(),r.budgetCent(),r.pace(),r.style(),r.stay()).validate();

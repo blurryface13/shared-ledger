@@ -11,7 +11,9 @@ public record Trip(Long id, long version, String name, String destination, Local
     LocalDate endDate, int people, long budgetCent, String pace, String style, String stay,
     Long bookId, boolean archived, List<Activity> activities) {
     public record Activity(String id, int day, String title, String time, int duration, String note,
-        String color, boolean locked, boolean done, String poiId, Double longitude, Double latitude) {}
+        String color, boolean locked, boolean done, String poiId, Double longitude, Double latitude, String coordinateSystem) {
+        public Activity(String id,int day,String title,String time,int duration,String note,String color,boolean locked,boolean done,String poiId,Double longitude,Double latitude){this(id,day,title,time,duration,note,color,locked,done,poiId,longitude,latitude,null);}
+    }
     public Trip {
         activities = activities == null ? List.of() : List.copyOf(activities);
     }
@@ -41,6 +43,7 @@ public record Trip(Long id, long version, String name, String destination, Local
             require(Set.of("blue","rose","sage").contains(a.color()==null?"":a.color()),"卡片颜色无效");
             int minute=time(a.time()); require(minute+a.duration()<=1440,"活动不能跨越当天24点");
             require((a.longitude()==null)==(a.latitude()==null),"经纬度必须同时填写");
+            require(a.coordinateSystem()==null||Set.of("WGS84","GCJ-02").contains(a.coordinateSystem()),"坐标类型无效");
             if(a.longitude()!=null)require(Double.isFinite(a.longitude())&&Double.isFinite(a.latitude())&&Math.abs(a.longitude())<=180&&Math.abs(a.latitude())<=90,"坐标无效");
         }
         for(int d=0;d<days();d++) {

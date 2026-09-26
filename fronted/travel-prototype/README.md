@@ -1,30 +1,11 @@
-# Shared Ledger · 交互设计样稿
+# Connected travel UI
 
-基于用户 2026-09-19 提供的行程卡、独立交通行、低饱和配色与斜放导出纸张参考。独立的无依赖设计样稿，未替换生产 uni-app 页面，也未连接 Java 接口。
+This is the current mobile-first web UI for the Java backend. Run `python3 serve.py` here after starting the backend on port 8081, then open <http://127.0.0.1:4178>. Override `PORT` and `TRIP_LEDGER_API_PORT` for an isolated preview. No npm install is needed.
 
-运行：在本目录执行 `python3 -m http.server 4178 --bind 127.0.0.1`，打开 http://127.0.0.1:4178 。无需 npm 安装。
+In a trip, **打开地图** opens a Leaflet map. Choose a day or the whole trip, search a place explicitly, select a map marker or list row, or find sights, stays and food within 3 km of a selected place. Nearby distance is straight-line distance. The route button asks the Java backend for a walking road route through the day's positioned stops. Weather comes from Open-Meteo within its forecast window. Existing stops without coordinates can be linked to a matching search result before searching nearby.
 
-可体验：
-- 两天行程切换，活动展开、编辑、新增、移除、锁定与手动打卡。
-- 路线示意播放；不申请定位权限。
-- 小炫汤圆偏好表单、本地规则草案和确认采纳，锁定/已完成安排保留。
-- 英文导航 Itinerary / Ledger / Gallery；旅行与画廊使用新提供的角色透明图标。
-- 活动关联记账、选择参与成员按分均摊、分类筛选/统计、成员管理演示、修改/删除审批、收付款确认流程。
-- 账本独立导出汇总或个人明细，“帮我算账”计算余额与结算建议；全部为本地演示。
-- 图片本地预览、相册/凭据分开；不上传图片，不执行水印。
-- 斜放导出预览、正视阅读、浏览器打印/保存 PDF。
-- 桌面与手机布局、键盘焦点、减少动态效果。
+The connected UI uses server-backed trips and account permissions. `app.js` and older styles retain the original standalone prototype logic for now; `connected.js` is the active data layer. Some labels and inactive prototype paths still need consolidation. The web UI is not yet the native mini-program.
 
-状态保存在浏览器 localStorage。多记录模式隐藏旧的全量重置入口，使用归档/恢复管理记录。图片仅以对象 URL 留在当前页面内存，刷新后清除。头像与账本图标已替换为用户提供图片的透明底版本；使用内置 imagegen 提取，可能有轻微像素差异。
+Leaflet 1.9.4 is vendored under `vendor/leaflet` with its BSD-2-Clause license. OpenStreetMap attribution remains visible. Public Nominatim, tile and OSRM services are for bounded development traffic; see [map atlas notes](../../docs/map-atlas.md) before deployment.
 
-限制：不提供真实 POI 搜索、道路路线、模型规划、订单 OCR、服务端结算确认、算法嵌入/提取。原型不具备生产鉴权；所有数据只用于本机演示。表单预算/住宿条件仅记录，不能视为查价结果。
-
-后续按 `docs/travel-ledger-spec.md` 分阶段接入，迁移到 uni-app 时需真机核验地图层、弹层、打印/分享与触控行为。
-
-共享账本迁移范围与未接入项见 [功能对照](../../../docs/ledger-ui-coverage.md)。
-
-新增独立行程/账本入口：创建、选择、归档、历史摘要与恢复；行程支持 1–30 天，自选日期，日期牌可直接编辑。账本独立保存预算和带真实日期的账单。当前按可选一对一关系绑定，替换关联/解绑不迁移内容。旧本机数据首次自动迁入，后续以 `shared-ledger-library-v1` 为准。
-
-新建行程为空白，不填充杭州数据；现有规划规则只对杭州演示开放。Gallery 仍为页面内存中的通用预览，尚未按行程/账本建立媒体集合。成员仍为原样稿的四位模拟成员，非真实新增协作成员。
-
-路线页：进入任意行程后点击“查看路线”。支持按天切换、点选编号/地点、返回并展开对应行程卡、播放/暂停顺序动画。画布的道路、水面与地点位置均为设计示意，不是实际杭州地图；无定位请求、无外部地图请求。步行/驾车仅为本页偏好预览，尚不计算路径。
+Run browser-independent checks with `node --test *.test.cjs` and `python3 -m unittest serve_test.py`.
