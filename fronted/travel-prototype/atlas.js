@@ -7,6 +7,7 @@ window.tripAtlas=(()=>{
   const categories={sights:'景点',stays:'住宿',food:'餐饮'};
   const weatherCache=new Map();
   function create({api,onEdit,onAdd,onLink,onClose}){
+    const mapConfig=window.tripMapConfig||{};
     const host=document.createElement('dialog');host.className='atlas-dialog';host.setAttribute('aria-labelledby','atlas-title');document.body.append(host);
     let context,trip,day=0,map,tiles,markers,road,radius,selected=null,origin=null,nearby=[],results=[],category='sights',mode='planned',message='',request=0,routeRequest=0,weatherRequest=0,weatherAbort,searching=false,routing=false,routeSummary='',weather='',tileErrors=0,cityCenter=null,centerRequest=0;
     const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -27,8 +28,7 @@ window.tripAtlas=(()=>{
       if(!window.L){message='地图库未加载，请刷新页面后重试。';status();paint();return;}
       map=L.map(node('.atlas-canvas'),{zoomControl:false,attributionControl:true,scrollWheelZoom:true,zoomAnimation:!reduced()}).setView([30.25,120.15],11);
       map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
-      const config=window.tripMapConfig||{};
-      tiles=L.tileLayer(config.tileUrl||'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:config.attribution||'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+      tiles=L.tileLayer(mapConfig.tileUrl||'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:mapConfig.attribution||'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
       tiles.on('tileerror',()=>{if(++tileErrors>=2)node('.atlas-tile-error').hidden=false;});
       tiles.on('tileload',()=>{tileErrors=0;node('.atlas-tile-error').hidden=true;});
       markers=L.layerGroup().addTo(map);map.on('zoomend',draw);selected=all().find(T.valid)?.key||all()[0]?.key||null;paint();fit();loadWeather();if(!all().some(T.valid))loadCityCenter();
@@ -77,7 +77,7 @@ window.tripAtlas=(()=>{
       const ticket=++weatherRequest;weatherAbort?.abort();const p=current(),el=node('.atlas-weather');el.textContent='';if(!T.valid(p)||day<0)return;
       const date=T.dateAt(trip.startDate,day),today=new Date().toLocaleDateString('en-CA');if(date<today||Date.parse(date)-Date.parse(today)>15*86400000){el.textContent='预报范围外';return;}
       const [lat,lon]=T.toWgs(p.longitude,p.latitude,p.coordinateSystem),key=`${lat.toFixed(2)},${lon.toFixed(2)}`;el.textContent='天气查询中';
-      try{let data=weatherCache.get(key);if(!data||Date.now()-data.at>1800000){weatherAbort=new AbortController();const timeout=setTimeout(()=>weatherAbort?.abort(),8000);let response;try{response=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=16`,{signal:weatherAbort.signal});if(!response.ok)throw Error();data={body:await response.json(),at:Date.now()};}finally{clearTimeout(timeout);}weatherCache.set(key,data);}
+      try{let data=weatherCache.get(key);if(!data||Date.now()-data.at>1800000){weatherAbort=new AbortController();const timeout=setTimeout(()=>weatherAbort?.abort(),8000);let response;try{response=await fetch(`${mapConfig.weatherUrl||'https://api.open-meteo.com/v1/forecast'}?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=16`,{signal:weatherAbort.signal});if(!response.ok)throw Error();data={body:await response.json(),at:Date.now()};}finally{clearTimeout(timeout);}weatherCache.set(key,data);}
         if(ticket!==weatherRequest||!host.open)return;const f=T.forecast(data.body,date);el.textContent=f?`${f.low}–${f.high}°${Number.isFinite(f.rain)?' · 降水 '+f.rain+'%':''}`:'暂无当天预报';el.title='Open-Meteo · '+date;el.setAttribute('aria-label','Open-Meteo '+date+' '+el.textContent);
       }catch{if(ticket===weatherRequest&&host.open)el.textContent='天气暂不可用';}
     }

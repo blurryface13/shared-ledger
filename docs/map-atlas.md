@@ -17,11 +17,19 @@
 - [OSRM](https://github.com/Project-OSRM/osrm-backend) 路线与公共服务可能超时或不可达；路线查询是显式操作，失败显示错误，不伪造路线。为提高可用性，生产环境应选有 SLA 的地图/路线服务。
 - 地点、路线、瓦片统一使用 OSM 系生态，不把原高德 POI/路线叠到 OSM 底图。过往设计文档的高德方案和“路线仅示意”描述属于历史阶段，以本文件及现行代码为准。
 
-## 还需收尾
+## 服务替换与观测
 
-1. 将 `app.js` 中旧本地原型逻辑和静态文案从连接版入口拆离，消除两套状态实现；当前连接版已经使用 `connected.js` 数据流。
-2. 原生小程序地图层与触摸面板需要真机迁移/验收；当前已验证的是浏览器手机视口。
-3. 如果面向真实公众部署，替换公共地理服务为有容量保障的实例，并监测超时、命中率及费用。
-4. OAuth、Passkey、OTP 可以参考 [TREK](https://github.com/liketrek/TREK) 的产品能力，但当前登录架构仍是项目自己的微信/本地测试登录，新增认证需要单独的账户绑定与安全设计。TREK 为 AGPL-3.0 许可，此处只参考交互与架构，不复制代码。
+连接版 `index.html` 只加载 `connected.js`，不再加载旧 `app.js` 的本地行程、账单状态和事件。旧文件保留作历史样稿参考，不参与连接版运行。
+
+- Java 的 `TRIP_LEDGER_NOMINATIM_SEARCH_URL`、`TRIP_LEDGER_FOOT_ROUTE_URL` 和 `TRIP_LEDGER_OSM_USER_AGENT` 可在部署时切换为批准的地点、路线实例。更换端点会切换缓存命名空间，不复用旧服务的结果。URL 须为 HTTP(S) 地址，无查询参数；步行路由地址以 `/` 结尾。
+- 静态部署时可替换 `fronted/travel-prototype/map-config.js`，设置 `window.tripMapConfig` 的 `tileUrl`、`attribution` 和 `weatherUrl`。只写浏览器可公开的信息，不放 API Key。需要私密密钥的服务应由服务端代理。更换瓦片仍须显示对应版权署名。
+- Java 管理端口仅监听本机。其 `/actuator/prometheus` 提供 `trip_ledger_map_requests_total`（成功、失败、繁忙）、`trip_ledger_map_cache_hits_total`（本地、Redis）和 `trip_ledger_map_request_duration_seconds`。按请求量、错误率、耗时、缓存命中与供应商账单联看；浏览器侧天气失败会显示“天气暂不可用”。
+- 公共实例仍只适合受控开发联调。面向公众上线前，需要选定有授权、容量和费用边界的地图/路线/天气服务，完成压测和监控告警；此仓库没有代用户购买或部署这些服务。
+
+## 后续边界
+
+仓库目前没有原生小程序前端工程，因此不能声称完成小程序真机迁移。迁移时以现有 `/api/v1/trips/{id}/center`、`places`、`nearby`、`route` 和行程保存接口为数据契约，逐项验收地图缩放与拖动、日期切换、点选与列表联动、周边分类、路线失败提示、触摸面板和可访问性；真实设备还需验证微信登录、网络权限及不同尺寸。当前已验证的是连接版 Web 的手机浏览器视口。
+
+OAuth、Passkey、OTP 可以参考 [TREK](https://github.com/liketrek/TREK) 的产品能力，但当前登录架构仍是项目自己的微信/本地测试登录，新增认证需要单独的账户绑定与安全设计。TREK 为 AGPL-3.0 许可，此处只参考交互与架构，不复制代码。
 
 参考交互：登录后的 [圆周旅迹](https://www.pitravel.cn/) 用地图点与地点卡片、日程顺序相互定位；这里保留本项目的行程、账本和权限模型，并采用自己的视觉布局。

@@ -6,6 +6,7 @@ import com.spvermicelli.tripledger.shared.common.enums.ErrorCode;
 import com.spvermicelli.tripledger.shared.common.exception.BusinessException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -16,6 +17,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -26,21 +28,42 @@ public class OsmGateway implements MapGateway {
     private final HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
     private final ObjectMapper json=new ObjectMapper();
     private final StringRedisTemplate redis;
+    private final MeterRegistry metrics;
     private final String userAgent;
+    private final String nominatimSearchUrl, footRouteUrl, cachePrefix;
     private final Semaphore geocoder=new Semaphore(1), other=new Semaphore(1);
     private final Map<String,Cache> local=new ConcurrentHashMap<>();
     private long lastGeocodeAt=0;
     private record Cache(JsonNode value,long expiresAt){}
-    public OsmGateway(StringRedisTemplate redis,@Value("${app.travel.osm-user-agent:TripLedger/0.1 (local development)}")String userAgent){this.redis=redis;this.userAgent=userAgent;}
+    private void remember(String key,JsonNode value,long expiresAt){
+        if(local.size()>=512){long now=System.currentTimeMillis();local.entrySet().removeIf(entry->entry.getValue().expiresAt<=now);if(local.size()>=512)local.clear();}
+        local.put(key,new Cache(value,expiresAt));
+    }
+    public OsmGateway(StringRedisTemplate redis,MeterRegistry metrics,
+            @Value("${app.travel.osm-user-agent:TripLedger/0.1 (local development)}")String userAgent,
+            @Value("${app.travel.nominatim-search-url:https://nominatim.openstreetmap.org/search}")String nominatimSearchUrl,
+            @Value("${app.travel.foot-route-url:https://routing.openstreetmap.de/routed-foot/route/v1/driving/}")String footRouteUrl){
+        this.redis=redis;this.metrics=metrics;this.userAgent=userAgent;
+        this.nominatimSearchUrl=endpoint(nominatimSearchUrl);
+        this.footRouteUrl=endpoint(footRouteUrl).replaceAll("/*$", "/");
+        this.cachePrefix="trip-ledger:osm:v2:"+Integer.toHexString(Objects.hash(this.nominatimSearchUrl,this.footRouteUrl))+":";
+    }
+    private static String endpoint(String raw){
+        URI uri=URI.create(raw);
+        if(!Set.of("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getQuery()!=null||uri.getFragment()!=null)
+            throw new IllegalArgumentException("Map service URL must be an HTTP(S) endpoint without query or fragment");
+        return uri.toString();
+    }
     private static String enc(String value){return URLEncoder.encode(value,StandardCharsets.UTF_8);}
     private static String pair(double longitude,double latitude){return String.format(Locale.ROOT,"%.6f,%.6f",longitude,latitude);}
     private static boolean valid(double lon,double lat){return Double.isFinite(lon)&&Double.isFinite(lat)&&Math.abs(lon)<=180&&Math.abs(lat)<=90;}
     private JsonNode request(String id,URI uri,String body,Duration ttl,boolean nominatim){
-        String key="trip-ledger:osm:v1:"+id;
-        Cache cached=local.get(key);if(cached!=null&&cached.expiresAt>System.currentTimeMillis())return cached.value;
-        try{String value=redis.opsForValue().get(key);if(value!=null){JsonNode tree=json.readTree(value);local.put(key,new Cache(tree,System.currentTimeMillis()+Math.min(ttl.toMillis(),60000)));return tree;}}catch(Exception ignored){/* Redis is an optional cache. */}
+        String service=nominatim?"geocoder":"walking_route",key=cachePrefix+id;
+        Cache cached=local.get(key);if(cached!=null&&cached.expiresAt>System.currentTimeMillis()){metrics.counter("trip_ledger_map_cache_hits_total","service",service,"source","local").increment();return cached.value;}
+        try{String value=redis.opsForValue().get(key);if(value!=null){JsonNode tree=json.readTree(value);remember(key,tree,System.currentTimeMillis()+Math.min(ttl.toMillis(),60000));metrics.counter("trip_ledger_map_cache_hits_total","service",service,"source","redis").increment();return tree;}}catch(Exception ignored){/* Redis is an optional cache. */}
         Semaphore permit=nominatim?geocoder:other;
-        if(!permit.tryAcquire())throw new BusinessException(ErrorCode.INVALID_STATUS,"地图查询繁忙，请稍后重试");
+        if(!permit.tryAcquire()){metrics.counter("trip_ledger_map_requests_total","service",service,"outcome","busy").increment();throw new BusinessException(ErrorCode.INVALID_STATUS,"地图查询繁忙，请稍后重试");}
+        long started=System.nanoTime();boolean success=false;
         try{
             // Nominatim's public server permits at most one request per second per application.
             if(nominatim){long wait=1200-(System.currentTimeMillis()-lastGeocodeAt);if(wait>0)Thread.sleep(wait);lastGeocodeAt=System.currentTimeMillis();}
@@ -49,15 +72,16 @@ public class OsmGateway implements MapGateway {
             HttpResponse<String> result=client.send(req,HttpResponse.BodyHandlers.ofString());
             if(result.statusCode()!=200)throw new BusinessException(ErrorCode.INVALID_STATUS,"地点服务暂不可用，请稍后重试");
             JsonNode tree=json.readTree(result.body());
-            local.put(key,new Cache(tree,System.currentTimeMillis()+ttl.toMillis()));
+            remember(key,tree,System.currentTimeMillis()+ttl.toMillis());
             try{redis.opsForValue().set(key,result.body(),ttl);}catch(Exception ignored){}
+            success=true;
             return tree;
         }catch(BusinessException ex){throw ex;}
         catch(InterruptedException ex){Thread.currentThread().interrupt();throw new BusinessException(ErrorCode.INVALID_STATUS,"地图查询已中断");}
         catch(Exception ex){throw new BusinessException(ErrorCode.INVALID_STATUS,"地图服务暂不可用，请稍后重试");}
-        finally{permit.release();}
+        finally{metrics.counter("trip_ledger_map_requests_total","service",service,"outcome",success?"success":"error").increment();metrics.timer("trip_ledger_map_request_duration","service",service).record(System.nanoTime()-started,TimeUnit.NANOSECONDS);permit.release();}
     }
-    private JsonNode nominatim(String id,String params){return request(id,URI.create("https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&accept-language=zh-CN&"+params),null,Duration.ofHours(24),true);}
+    private JsonNode nominatim(String id,String params){return request(id,URI.create(nominatimSearchUrl+"?format=jsonv2&addressdetails=1&accept-language=zh-CN&"+params),null,Duration.ofHours(24),true);}
     public Center center(String city){
         JsonNode found=nominatim("center:"+city,"city="+enc(city)+"&limit=1");
         if(!found.isArray()||found.isEmpty())throw new BusinessException(ErrorCode.NOT_FOUND,"无法确定目的地位置，请搜索具体地点");
@@ -112,7 +136,7 @@ public class OsmGateway implements MapGateway {
     public Leg walk(Trip.Activity from,Trip.Activity to){
         double[] a=wgs(from),b=wgs(to);
         String points=pair(a[0],a[1])+";"+pair(b[0],b[1]);
-        JsonNode r=request("foot:"+points,URI.create("https://routing.openstreetmap.de/routed-foot/route/v1/driving/"+points+"?overview=full&geometries=geojson"),null,Duration.ofMinutes(20),false);
+        JsonNode r=request("foot:"+points,URI.create(footRouteUrl+points+"?overview=full&geometries=geojson"),null,Duration.ofMinutes(20),false);
         JsonNode routes=r.path("routes");if(!"Ok".equals(r.path("code").asText())||!routes.isArray()||routes.isEmpty())throw new BusinessException(ErrorCode.NOT_FOUND,"这两个地点间没有可用步行路线");
         JsonNode waypoints=r.path("waypoints");
         if(!waypoints.isArray()||waypoints.size()<2)throw new BusinessException(ErrorCode.INVALID_STATUS,"路线端点无法校验，请重试");
